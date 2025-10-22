@@ -1,5 +1,5 @@
---// ⚫🔴 DarkRed Library V5 (Mobile Ready + OpenButton Klick + Drag + Persist Position)
--- Schwarz/Rot Theme | Smooth Animation | Touch-Dragging | Titel + Tabs links | OpenButton Draggable & Clickable
+--// ⚫🔴 DarkRed Library V6 (Mobile Ready + Draggable OpenButton)
+-- Schwarz/Rot Theme | Smooth Animation | Draggable GUI & OpenButton | Tabs + Elements
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -27,7 +27,7 @@ local function createBaseGui(title)
     gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     gui.Parent = PlayerGui
 
-    -- Open/Close Button
+    -- Open/Close Button (Draggable auf Mobile)
     local openButton = Instance.new("TextButton")
     openButton.Size = UDim2.new(0,40,0,40)
     openButton.Position = UDim2.new(0,10,0,10)
@@ -38,11 +38,13 @@ local function createBaseGui(title)
     openButton.BackgroundColor3 = THEME.Secondary
     openButton.Parent = gui
     Instance.new("UICorner", openButton).CornerRadius = UDim.new(0,8)
+    openButton.Active = true
+    openButton.Draggable = true -- WICHTIG für Mobile
 
     -- Hauptfenster
     local main = Instance.new("Frame")
     main.Size = UDim2.new(0,520,0,360)
-    main.Position = UDim2.new(-1,0,0.25,0)
+    main.Position = UDim2.new(0.25,0,0.25,0)
     main.BackgroundColor3 = THEME.Background
     main.Active = true
     main.ClipsDescendants = true
@@ -93,13 +95,12 @@ local function createBaseGui(title)
     tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     tabLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 
-    -- Content Bereich mit Padding
+    -- Content Bereich
     local content = Instance.new("Frame")
     content.Size = UDim2.new(1,-140,1,-40)
     content.Position = UDim2.new(0,140,0,40)
     content.BackgroundColor3 = THEME.Background
     content.Parent = main
-    content.Padding = 12
 
     local folder = Instance.new("Folder")
     folder.Name = "Pages"
@@ -122,7 +123,7 @@ function Library.new(cfg)
     self.UI = createBaseGui(cfg and cfg.title or "DarkRed UI")
     self.Tabs = {}
     self.Open = false
-    self.LastPosition = UDim2.new(0.5,-260,0.25,0) -- default
+    self.LastPosition = self.UI.Main.Position
 
     -- GUI Main Frame Drag
     local dragging, dragStart, startPos
@@ -146,43 +147,9 @@ function Library.new(cfg)
         dragging = false
     end)
 
-    -- Open/Close Button Drag & Click
-    local dragThreshold = 5
-    local btnDragging = false
-    local btnStartPos, btnInputStartPos
-
-    self.UI.OpenButton.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            btnDragging = false
-            btnInputStartPos = input.Position
-            btnStartPos = self.UI.OpenButton.Position
-
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    local delta = (input.Position - btnInputStartPos).Magnitude
-                    if delta < dragThreshold then
-                        self:Toggle()
-                    end
-                end
-            end)
-        end
-    end)
-
-    self.UI.OpenButton.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = input.Position - btnInputStartPos
-            if delta.Magnitude > dragThreshold then
-                btnDragging = true
-            end
-            if btnDragging then
-                self.UI.OpenButton.Position = UDim2.new(
-                    btnStartPos.X.Scale,
-                    btnStartPos.X.Offset + delta.X,
-                    btnStartPos.Y.Scale,
-                    btnStartPos.Y.Offset + delta.Y
-                )
-            end
-        end
+    -- OpenButton Click Event
+    self.UI.OpenButton.MouseButton1Click:Connect(function()
+        self:Toggle()
     end)
 
     return self
@@ -222,10 +189,10 @@ function Library:AddTab(name)
     tabBtn.MouseButton1Click:Connect(function()
         for _,t in pairs(self.Tabs) do
             t.Page.Visible = false
-            tween(t.Button, {BackgroundColor3 = THEME.Background}, 0.2)
+            t.Button.BackgroundColor3 = THEME.Background
         end
         page.Visible = true
-        tween(tabBtn, {BackgroundColor3 = THEME.Accent}, 0.2)
+        tabBtn.BackgroundColor3 = THEME.Accent
     end)
 
     if #self.Tabs == 1 then
@@ -236,7 +203,7 @@ function Library:AddTab(name)
     return page
 end
 
--- UI Elemente (Abstand 12 Pixel)
+-- UI Elemente
 function Library:AddLabel(tab, text)
     local lbl = Instance.new("TextLabel")
     lbl.Size = UDim2.new(1,-20,0,24)
@@ -298,78 +265,6 @@ function Library:AddToggle(tab, text, default, callback)
         btn.Text = val and "ON" or "OFF"
         tween(btn, {BackgroundColor3 = val and THEME.Accent or THEME.Secondary}, 0.2)
         pcall(callback, val)
-    end)
-end
-
-function Library:AddTextbox(tab, placeholder, callback)
-    local tb = Instance.new("TextBox")
-    tb.Size = UDim2.new(0,180,0,30)
-    tb.Position = UDim2.new(0,12,0,0)
-    tb.PlaceholderText = placeholder
-    tb.TextColor3 = THEME.Text
-    tb.Font = Enum.Font.Gotham
-    tb.TextSize = 14
-    tb.BackgroundColor3 = THEME.Secondary
-    tb.Parent = tab
-    Instance.new("UICorner", tb).CornerRadius = UDim.new(0,6)
-    tb.FocusLost:Connect(function(enter)
-        if enter then pcall(callback, tb.Text) end
-    end)
-end
-
-function Library:AddDropdown(tab, text, options, callback)
-    local dd = Instance.new("Frame")
-    dd.Size = UDim2.new(0,180,0,34)
-    dd.Position = UDim2.new(0,12,0,0)
-    dd.BackgroundColor3 = THEME.Secondary
-    dd.Parent = tab
-    Instance.new("UICorner", dd).CornerRadius = UDim.new(0,6)
-
-    local lbl = Instance.new("TextLabel", dd)
-    lbl.Size = UDim2.new(1,-28,1,0)
-    lbl.Text = text
-    lbl.Font = Enum.Font.Gotham
-    lbl.TextColor3 = THEME.Text
-    lbl.TextSize = 14
-    lbl.BackgroundTransparency = 1
-
-    local btn = Instance.new("TextButton", dd)
-    btn.Size = UDim2.new(0,26,0,26)
-    btn.Position = UDim2.new(1,-26,0.5,-13)
-    btn.Text = "▾"
-    btn.BackgroundTransparency = 1
-    btn.TextColor3 = THEME.Text
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 16
-
-    local list = Instance.new("Frame", dd)
-    list.Position = UDim2.new(0,0,1,4)
-    list.Size = UDim2.new(1,0,0,0)
-    list.BackgroundColor3 = THEME.Secondary
-    list.Visible = false
-    Instance.new("UICorner", list).CornerRadius = UDim.new(0,6)
-    local layout = Instance.new("UIListLayout", list)
-    layout.Padding = UDim.new(0,4)
-
-    for _,opt in ipairs(options) do
-        local o = Instance.new("TextButton", list)
-        o.Size = UDim2.new(1,-8,0,26)
-        o.Text = opt
-        o.Font = Enum.Font.Gotham
-        o.TextSize = 14
-        o.TextColor3 = THEME.Text
-        o.BackgroundColor3 = THEME.Background
-        Instance.new("UICorner", o).CornerRadius = UDim.new(0,6)
-        o.MouseButton1Click:Connect(function()
-            lbl.Text = opt
-            list.Visible = false
-            pcall(callback, opt)
-        end)
-    end
-
-    btn.MouseButton1Click:Connect(function()
-        list.Visible = not list.Visible
-        list.Size = list.Visible and UDim2.new(1,0,0,#options*30) or UDim2.new(1,0,0,0)
     end)
 end
 
