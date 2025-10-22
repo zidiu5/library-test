@@ -1,10 +1,9 @@
---// ⚫🔴 DarkRed Library v3 (Mobile Ready + Clean Design)
--- Schwarz/Rot Theme | Smooth Animation | Touch-Dragging | Titel + Tabs links
+--// ⚫🔴 DarkRed Library v4 (Mobile Ready + Clean + Persisting Position)
+-- Schwarz/Rot Theme | Smooth Animation | Touch-Dragging | Titel + Tabs links | OpenButton Draggable
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
@@ -22,7 +21,6 @@ local function tween(obj, props, t)
     TweenService:Create(obj, TweenInfo.new(t or 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
 end
 
--- Basis GUI erstellen
 local function createBaseGui(title)
     local gui = Instance.new("ScreenGui")
     gui.Name = "DarkRedLibrary"
@@ -56,7 +54,7 @@ local function createBaseGui(title)
     local shadow = Instance.new("ImageLabel")
     shadow.ZIndex = 0
     shadow.Image = "rbxassetid://1316045217"
-    shadow.ImageColor3 = Color3.fromRGB(0,0,0)
+    shadow.ImageColor3 = Color3.new(0,0,0)
     shadow.ImageTransparency = 0.6
     shadow.ScaleType = Enum.ScaleType.Slice
     shadow.SliceCenter = Rect.new(10,10,118,118)
@@ -96,12 +94,14 @@ local function createBaseGui(title)
     tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     tabLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 
-    -- Content Bereich
+    -- Content Bereich mit Padding
     local content = Instance.new("Frame")
     content.Size = UDim2.new(1,-140,1,-40)
     content.Position = UDim2.new(0,140,0,40)
     content.BackgroundColor3 = THEME.Background
     content.Parent = main
+    content.Padding = 12 -- Abstand zu Tabs
+    content.LayoutOrder = 1
 
     local folder = Instance.new("Folder")
     folder.Name = "Pages"
@@ -114,7 +114,8 @@ local function createBaseGui(title)
         Topbar = topbar,
         Tabs = tabFrame,
         Content = content,
-        Pages = folder
+        Pages = folder,
+        TitleLabel = titleLabel
     }
 end
 
@@ -123,46 +124,68 @@ function Library.new(cfg)
     self.UI = createBaseGui(cfg and cfg.title or "DarkRed UI")
     self.Tabs = {}
     self.Open = false
+    self.LastPosition = UDim2.new(0.5,-260,0.25,0) -- default
 
     -- Öffnen/Schließen
     self.UI.OpenButton.MouseButton1Click:Connect(function()
         self:Toggle()
     end)
 
-    -- Touch-Dragging fix
+    -- Touch/Mouse Drag für Main Frame
     local dragging, dragStart, startPos
     local function updateDrag(input)
         local delta = input.Position - dragStart
-        self.UI.Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        self.UI.Main.Position = newPos
+        self.LastPosition = newPos
     end
 
+    local function startDrag(input)
+        dragging = true
+        dragStart = input.Position
+        startPos = self.UI.Main.Position
+    end
+
+    local function stopDrag()
+        dragging = false
+    end
+
+    -- Main Frame Drag
     self.UI.Topbar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = self.UI.Main.Position
+            startDrag(input)
         end
     end)
     self.UI.Topbar.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
-            updateDrag(input)
+        if dragging then updateDrag(input) end
+    end)
+    self.UI.Topbar.InputEnded:Connect(stopDrag)
+
+    -- OpenButton Dragging (getrennt vom Klick)
+    local btnDragging, btnStartPos, btnStartOffset
+    self.UI.OpenButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            btnDragging = true
+            btnStartPos = input.Position
+            btnStartOffset = self.UI.OpenButton.Position
         end
     end)
-    self.UI.Topbar.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
+    self.UI.OpenButton.InputChanged:Connect(function(input)
+        if btnDragging then
+            local delta = input.Position - btnStartPos
+            self.UI.OpenButton.Position = UDim2.new(btnStartOffset.X.Scale, btnStartOffset.X.Offset + delta.X, btnStartOffset.Y.Scale, btnStartOffset.Y.Offset + delta.Y)
         end
+    end)
+    self.UI.OpenButton.InputEnded:Connect(function(input)
+        btnDragging = false
     end)
 
     return self
 end
 
 function Library:Toggle()
-    if self.Open then
-        tween(self.UI.Main, {Position = UDim2.new(-1,0,0.25,0)}, 0.3)
-    else
-        tween(self.UI.Main, {Position = UDim2.new(0.5,-260,0.25,0)}, 0.3)
-    end
+    local target = self.Open and UDim2.new(-1,0,0.25,0) or self.LastPosition
+    tween(self.UI.Main, {Position = target}, 0.3)
     self.Open = not self.Open
 end
 
@@ -217,6 +240,7 @@ function Library:AddLabel(tab, text)
     lbl.Font = Enum.Font.Gotham
     lbl.TextSize = 14
     lbl.BackgroundTransparency = 1
+    lbl.Position = UDim2.new(0,12,0,0)
     lbl.Parent = tab
     return lbl
 end
@@ -224,6 +248,7 @@ end
 function Library:AddButton(tab, text, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0,180,0,34)
+    btn.Position = UDim2.new(0,12,0,0)
     btn.Text = text
     btn.Font = Enum.Font.GothamBold
     btn.TextSize = 14
@@ -238,6 +263,7 @@ end
 function Library:AddToggle(tab, text, default, callback)
     local container = Instance.new("Frame")
     container.Size = UDim2.new(1,-20,0,34)
+    container.Position = UDim2.new(0,12,0,0)
     container.BackgroundTransparency = 1
     container.Parent = tab
 
@@ -273,6 +299,7 @@ end
 function Library:AddTextbox(tab, placeholder, callback)
     local tb = Instance.new("TextBox")
     tb.Size = UDim2.new(0,180,0,30)
+    tb.Position = UDim2.new(0,12,0,0)
     tb.PlaceholderText = placeholder
     tb.TextColor3 = THEME.Text
     tb.Font = Enum.Font.Gotham
@@ -288,6 +315,7 @@ end
 function Library:AddDropdown(tab, text, options, callback)
     local dd = Instance.new("Frame")
     dd.Size = UDim2.new(0,180,0,34)
+    dd.Position = UDim2.new(0,12,0,0)
     dd.BackgroundColor3 = THEME.Secondary
     dd.Parent = tab
     Instance.new("UICorner", dd).CornerRadius = UDim.new(0,6)
