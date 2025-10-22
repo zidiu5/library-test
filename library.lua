@@ -1,9 +1,8 @@
---// ⚫🔴 DarkRed Library v4 (Mobile Ready + Clean + Persisting Position)
--- Schwarz/Rot Theme | Smooth Animation | Touch-Dragging | Titel + Tabs links | OpenButton Draggable
+--// ⚫🔴 DarkRed Library V5 (Mobile Ready + OpenButton Klick + Drag + Persist Position)
+-- Schwarz/Rot Theme | Smooth Animation | Touch-Dragging | Titel + Tabs links | OpenButton Draggable & Clickable
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
@@ -100,8 +99,7 @@ local function createBaseGui(title)
     content.Position = UDim2.new(0,140,0,40)
     content.BackgroundColor3 = THEME.Background
     content.Parent = main
-    content.Padding = 12 -- Abstand zu Tabs
-    content.LayoutOrder = 1
+    content.Padding = 12
 
     local folder = Instance.new("Folder")
     folder.Name = "Pages"
@@ -126,12 +124,7 @@ function Library.new(cfg)
     self.Open = false
     self.LastPosition = UDim2.new(0.5,-260,0.25,0) -- default
 
-    -- Öffnen/Schließen
-    self.UI.OpenButton.MouseButton1Click:Connect(function()
-        self:Toggle()
-    end)
-
-    -- Touch/Mouse Drag für Main Frame
+    -- GUI Main Frame Drag
     local dragging, dragStart, startPos
     local function updateDrag(input)
         local delta = input.Position - dragStart
@@ -139,45 +132,57 @@ function Library.new(cfg)
         self.UI.Main.Position = newPos
         self.LastPosition = newPos
     end
-
-    local function startDrag(input)
-        dragging = true
-        dragStart = input.Position
-        startPos = self.UI.Main.Position
-    end
-
-    local function stopDrag()
-        dragging = false
-    end
-
-    -- Main Frame Drag
     self.UI.Topbar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            startDrag(input)
+            dragging = true
+            dragStart = input.Position
+            startPos = self.UI.Main.Position
         end
     end)
     self.UI.Topbar.InputChanged:Connect(function(input)
         if dragging then updateDrag(input) end
     end)
-    self.UI.Topbar.InputEnded:Connect(stopDrag)
+    self.UI.Topbar.InputEnded:Connect(function(input)
+        dragging = false
+    end)
 
-    -- OpenButton Dragging (getrennt vom Klick)
-    local btnDragging, btnStartPos, btnStartOffset
+    -- Open/Close Button Drag & Click
+    local dragThreshold = 5
+    local btnDragging = false
+    local btnStartPos, btnInputStartPos
+
     self.UI.OpenButton.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            btnDragging = true
-            btnStartPos = input.Position
-            btnStartOffset = self.UI.OpenButton.Position
+            btnDragging = false
+            btnInputStartPos = input.Position
+            btnStartPos = self.UI.OpenButton.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    local delta = (input.Position - btnInputStartPos).Magnitude
+                    if delta < dragThreshold then
+                        self:Toggle()
+                    end
+                end
+            end)
         end
     end)
+
     self.UI.OpenButton.InputChanged:Connect(function(input)
-        if btnDragging then
-            local delta = input.Position - btnStartPos
-            self.UI.OpenButton.Position = UDim2.new(btnStartOffset.X.Scale, btnStartOffset.X.Offset + delta.X, btnStartOffset.Y.Scale, btnStartOffset.Y.Offset + delta.Y)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - btnInputStartPos
+            if delta.Magnitude > dragThreshold then
+                btnDragging = true
+            end
+            if btnDragging then
+                self.UI.OpenButton.Position = UDim2.new(
+                    btnStartPos.X.Scale,
+                    btnStartPos.X.Offset + delta.X,
+                    btnStartPos.Y.Scale,
+                    btnStartPos.Y.Offset + delta.Y
+                )
+            end
         end
-    end)
-    self.UI.OpenButton.InputEnded:Connect(function(input)
-        btnDragging = false
     end)
 
     return self
@@ -231,7 +236,7 @@ function Library:AddTab(name)
     return page
 end
 
--- UI Elemente
+-- UI Elemente (Abstand 12 Pixel)
 function Library:AddLabel(tab, text)
     local lbl = Instance.new("TextLabel")
     lbl.Size = UDim2.new(1,-20,0,24)
