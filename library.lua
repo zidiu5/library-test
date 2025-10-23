@@ -1,5 +1,6 @@
---// ⚫🔴 DarkRed Library V6.2 (Mobile Fixed, Spacing + Full Tabs)
--- Schwarz/Rot Theme | Smooth | Draggable GUI & Button | Tabs + Elemente mit Abstand | Auto ScrollSize
+-- DarkRed Library V6.3
+-- Adds Update functions for label, textbox, button, toggle, dropdown
+-- Mobile-ready, draggable open button, position persisting, padded tab pages
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -27,7 +28,7 @@ local function createBaseGui(title)
     gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     gui.Parent = PlayerGui
 
-    -- Open Button
+    -- Open/Close Button (draggable on mobile)
     local openButton = Instance.new("TextButton")
     openButton.Size = UDim2.new(0,40,0,40)
     openButton.Position = UDim2.new(0,10,0,10)
@@ -69,19 +70,18 @@ local function createBaseGui(title)
     titleLabel.BackgroundTransparency = 1
     titleLabel.Parent = topbar
 
-    -- Tabs links
+    -- Tabs left
     local tabFrame = Instance.new("Frame")
     tabFrame.Size = UDim2.new(0,140,1,-40)
     tabFrame.Position = UDim2.new(0,0,0,40)
     tabFrame.BackgroundColor3 = THEME.Secondary
     tabFrame.Parent = main
-
     local tabLayout = Instance.new("UIListLayout", tabFrame)
     tabLayout.Padding = UDim.new(0,6)
     tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
     tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
-    -- Content rechts
+    -- Content right
     local content = Instance.new("Frame")
     content.Size = UDim2.new(1,-140,1,-40)
     content.Position = UDim2.new(0,140,0,40)
@@ -104,14 +104,20 @@ local function createBaseGui(title)
     }
 end
 
+-- helper id generator
+local function genId(prefix)
+    return prefix .. "_" .. tostring(math.random(1, 1e9))
+end
+
 function Library.new(cfg)
     local self = setmetatable({}, Library)
     self.UI = createBaseGui(cfg and cfg.title or "DarkRed UI")
     self.Tabs = {}
+    self.Elements = {} -- id -> {type=..., instance=..., meta=...}
     self.Open = false
     self.LastPosition = self.UI.Main.Position
 
-    -- Draggable Hauptframe
+    -- Main drag
     local dragging, dragStart, startPos
     local function updateDrag(input)
         local delta = input.Position - dragStart
@@ -133,7 +139,7 @@ function Library.new(cfg)
         dragging = false
     end)
 
-    -- OpenButton Funktion
+    -- Open/close click
     self.UI.OpenButton.MouseButton1Click:Connect(function()
         self:Toggle()
     end)
@@ -143,11 +149,11 @@ end
 
 function Library:Toggle()
     local target = self.Open and UDim2.new(-1,0,0.25,0) or self.LastPosition
-    tween(self.UI.Main, {Position = target}, 0.3)
+    tween(self.UI.Main, {Position = target}, 0.28)
     self.Open = not self.Open
 end
 
--- Tabs erstellen
+-- TAB creation (with padded scrolling frame + autosize)
 function Library:AddTab(name)
     local tabBtn = Instance.new("TextButton")
     tabBtn.Size = UDim2.new(1,-20,0,36)
@@ -160,8 +166,8 @@ function Library:AddTab(name)
 
     local page = Instance.new("ScrollingFrame")
     page.Size = UDim2.new(1,0,1,0)
-    page.CanvasSize = UDim2.new(0,0,0,600)
-    page.ScrollBarThickness = 5
+    page.CanvasSize = UDim2.new(0,0,0,10)
+    page.ScrollBarThickness = 6
     page.Visible = false
     page.BackgroundTransparency = 1
     page.Parent = self.UI.Pages
@@ -170,12 +176,14 @@ function Library:AddTab(name)
     layout.Padding = UDim.new(0,8)
     layout.SortOrder = Enum.SortOrder.LayoutOrder
 
-    local padding = Instance.new("UIPadding", page)
-    padding.PaddingLeft = UDim.new(0,12)
-    padding.PaddingTop = UDim.new(0,10)
+    local pad = Instance.new("UIPadding", page)
+    pad.PaddingLeft = UDim.new(0,12)
+    pad.PaddingTop = UDim.new(0,10)
+    pad.PaddingRight = UDim.new(0,12)
 
+    -- auto canvas resize
     layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        page.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 20)
+        page.CanvasSize = UDim2.new(0,0,0, layout.AbsoluteContentSize.Y + 12)
     end)
 
     table.insert(self.Tabs, {Button = tabBtn, Page = page})
@@ -197,23 +205,26 @@ function Library:AddTab(name)
     return page
 end
 
--- UI Elemente
+-- ADD ELEMENTS (store ids)
 function Library:AddLabel(tab, text)
+    local id = genId("label")
     local lbl = Instance.new("TextLabel")
     lbl.Size = UDim2.new(1,-20,0,24)
-    lbl.Text = text
+    lbl.Text = text or ""
     lbl.TextColor3 = THEME.Text
     lbl.Font = Enum.Font.Gotham
     lbl.TextSize = 14
     lbl.BackgroundTransparency = 1
     lbl.Parent = tab
-    return lbl
+    self.Elements[id] = {type="label", instance=lbl}
+    return id, lbl
 end
 
 function Library:AddButton(tab, text, callback)
+    local id = genId("button")
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0,180,0,34)
-    btn.Text = text
+    btn.Text = text or "Button"
     btn.Font = Enum.Font.GothamBold
     btn.TextSize = 14
     btn.TextColor3 = THEME.Text
@@ -221,10 +232,12 @@ function Library:AddButton(tab, text, callback)
     btn.Parent = tab
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
     btn.MouseButton1Click:Connect(function() pcall(callback) end)
-    return btn
+    self.Elements[id] = {type="button", instance=btn, callback=callback}
+    return id, btn
 end
 
 function Library:AddToggle(tab, text, default, callback)
+    local id = genId("toggle")
     local container = Instance.new("Frame")
     container.Size = UDim2.new(1,-20,0,34)
     container.BackgroundTransparency = 1
@@ -232,7 +245,7 @@ function Library:AddToggle(tab, text, default, callback)
 
     local lbl = Instance.new("TextLabel")
     lbl.Size = UDim2.new(1,-60,1,0)
-    lbl.Text = text
+    lbl.Text = text or ""
     lbl.Font = Enum.Font.Gotham
     lbl.TextSize = 14
     lbl.TextColor3 = THEME.Text
@@ -250,13 +263,164 @@ function Library:AddToggle(tab, text, default, callback)
     btn.Parent = container
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
 
-    local val = default
+    local val = default and true or false
     btn.MouseButton1Click:Connect(function()
         val = not val
         btn.Text = val and "ON" or "OFF"
-        tween(btn, {BackgroundColor3 = val and THEME.Accent or THEME.Secondary}, 0.2)
+        tween(btn, {BackgroundColor3 = val and THEME.Accent or THEME.Secondary}, 0.16)
         pcall(callback, val)
     end)
+
+    self.Elements[id] = {type="toggle", instance=btn, container=container, label=lbl, value=val, callback=callback}
+    return id, btn
+end
+
+function Library:AddTextbox(tab, placeholder, callback)
+    local id = genId("textbox")
+    local tb = Instance.new("TextBox")
+    tb.Size = UDim2.new(0,280,0,30)
+    tb.PlaceholderText = placeholder or ""
+    tb.TextColor3 = THEME.Text
+    tb.Font = Enum.Font.Gotham
+    tb.TextSize = 14
+    tb.BackgroundColor3 = THEME.Secondary
+    tb.Parent = tab
+    Instance.new("UICorner", tb).CornerRadius = UDim.new(0,6)
+    tb.FocusLost:Connect(function(enter)
+        if enter then pcall(callback, tb.Text) end
+    end)
+    self.Elements[id] = {type="textbox", instance=tb, callback=callback}
+    return id, tb
+end
+
+function Library:AddDropdown(tab, labelText, options, callback)
+    local id = genId("dropdown")
+    options = options or {}
+    local dd = Instance.new("Frame")
+    dd.Size = UDim2.new(0,280,0,34)
+    dd.BackgroundColor3 = THEME.Secondary
+    dd.Parent = tab
+    Instance.new("UICorner", dd).CornerRadius = UDim.new(0,6)
+
+    local lbl = Instance.new("TextLabel", dd)
+    lbl.Size = UDim2.new(1,-28,1,0)
+    lbl.Position = UDim2.new(0,8,0,0)
+    lbl.Text = labelText or (options[1] or "Choose")
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextColor3 = THEME.Text
+    lbl.TextSize = 14
+    lbl.BackgroundTransparency = 1
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+    local btn = Instance.new("TextButton", dd)
+    btn.Size = UDim2.new(0,26,0,26)
+    btn.Position = UDim2.new(1,-26,0.5,-13)
+    btn.Text = "▾"
+    btn.BackgroundTransparency = 1
+    btn.TextColor3 = THEME.Text
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 16
+
+    local list = Instance.new("Frame", dd)
+    list.Position = UDim2.new(0,0,1,6)
+    list.Size = UDim2.new(1,0,0,0)
+    list.BackgroundColor3 = THEME.Secondary
+    list.Visible = false
+    Instance.new("UICorner", list).CornerRadius = UDim.new(0,6)
+    local layout = Instance.new("UIListLayout", list)
+    layout.Padding = UDim.new(0,4)
+
+    local function rebuild(opts)
+        for _,c in pairs(list:GetChildren()) do
+            if c:IsA("TextButton") then c:Destroy() end
+        end
+        local height = 6
+        for _,opt in ipairs(opts) do
+            local o = Instance.new("TextButton", list)
+            o.Size = UDim2.new(1,-8,0,26)
+            o.Position = UDim2.new(0,4,0,0)
+            o.Text = opt
+            o.Font = Enum.Font.Gotham
+            o.TextSize = 14
+            o.TextColor3 = THEME.Text
+            o.BackgroundColor3 = THEME.Background
+            Instance.new("UICorner", o).CornerRadius = UDim.new(0,6)
+            o.MouseButton1Click:Connect(function()
+                lbl.Text = opt
+                list.Visible = false
+                pcall(callback, opt)
+            end)
+            height = height + 30
+        end
+        list.Size = UDim2.new(1,0,0, math.max(0, height))
+    end
+
+    rebuild(options)
+
+    btn.MouseButton1Click:Connect(function()
+        list.Visible = not list.Visible
+        if list.Visible then
+            list.Size = UDim2.new(1,0,0,#options*30)
+        else
+            list.Size = UDim2.new(1,0,0,0)
+        end
+    end)
+
+    self.Elements[id] = {type="dropdown", instance=dd, label=lbl, list=list, rebuild=rebuild, options=options, callback=callback}
+    return id, dd
+end
+
+-- UPDATE FUNCTIONS
+function Library:UpdateLabel(id, newText)
+    local el = self.Elements[id]
+    if not el or el.type ~= "label" then return false end
+    el.instance.Text = newText or el.instance.Text
+    return true
+end
+
+function Library:UpdateButton(id, newText)
+    local el = self.Elements[id]
+    if not el or el.type ~= "button" then return false end
+    el.instance.Text = newText or el.instance.Text
+    return true
+end
+
+function Library:UpdateToggle(id, newValue)
+    local el = self.Elements[id]
+    if not el or el.type ~= "toggle" then return false end
+    el.value = newValue and true or false
+    el.instance.Text = el.value and "ON" or "OFF"
+    tween(el.instance, {BackgroundColor3 = el.value and THEME.Accent or THEME.Secondary}, 0.14)
+    if el.callback then pcall(el.callback, el.value) end
+    return true
+end
+
+function Library:UpdateTextbox(id, newText, setPlaceholder)
+    local el = self.Elements[id]
+    if not el or el.type ~= "textbox" then return false end
+    if setPlaceholder then
+        el.instance.PlaceholderText = newText or el.instance.PlaceholderText
+    else
+        el.instance.Text = newText or el.instance.Text
+    end
+    return true
+end
+
+function Library:UpdateDropdown(id, newOptions, setSelected)
+    local el = self.Elements[id]
+    if not el or el.type ~= "dropdown" then return false end
+    el.options = newOptions or {}
+    el.rebuild(el.options)
+    if setSelected then
+        el.label.Text = setSelected
+    end
+    return true
+end
+
+function Library:GetDropdownSelected(id)
+    local el = self.Elements[id]
+    if not el or el.type ~= "dropdown" then return nil end
+    return el.label.Text
 end
 
 return Library
