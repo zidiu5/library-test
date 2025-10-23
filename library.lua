@@ -1,6 +1,7 @@
--- DarkRed Library V6.3.1
+-- DarkRed Library V6.3.2 (angepasst)
 -- Adds Update functions for label, textbox, button, toggle, dropdown
 -- Mobile-ready, draggable open button, position persisting, padded tab pages
+-- Features: Auto-fullwidth elements, auto-scroll only when needed
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -117,7 +118,7 @@ function Library.new(cfg)
     self.Open = false
     self.LastPosition = self.UI.Main.Position
 
-    -- Main drag (aktuell nur Topbar)
+    -- Main drag
     local dragging, dragStart, startPos
     local function updateDrag(input)
         local delta = input.Position - dragStart
@@ -126,7 +127,6 @@ function Library.new(cfg)
         self.LastPosition = newPos
     end
 
-    -- Eingaben für Drag
     self.UI.Main.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
@@ -140,7 +140,6 @@ function Library.new(cfg)
     self.UI.Main.InputEnded:Connect(function()
         dragging = false
     end)
-
 
     -- Open/close click
     self.UI.OpenButton.MouseButton1Click:Connect(function()
@@ -156,7 +155,7 @@ function Library:Toggle()
     self.Open = not self.Open
 end
 
--- TAB creation (with padded scrolling frame + autosize)
+-- TAB creation (scroll only if needed)
 function Library:AddTab(name)
     local tabBtn = Instance.new("TextButton")
     tabBtn.Size = UDim2.new(1,-20,0,36)
@@ -169,24 +168,25 @@ function Library:AddTab(name)
 
     local page = Instance.new("ScrollingFrame")
     page.Size = UDim2.new(1,0,1,0)
-    page.CanvasSize = UDim2.new(0,0,0,10)
+    page.Position = UDim2.new(0,0,0,0)
+    page.CanvasSize = UDim2.new(0,0,0,0)
     page.ScrollBarThickness = 6
-    page.Visible = false
     page.BackgroundTransparency = 1
     page.Parent = self.UI.Pages
 
     local layout = Instance.new("UIListLayout", page)
     layout.Padding = UDim.new(0,8)
     layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
-    local pad = Instance.new("UIPadding", page)
-    pad.PaddingLeft = UDim.new(0,12)
-    pad.PaddingTop = UDim.new(0,10)
-    pad.PaddingRight = UDim.new(0,12)
+    local padding = Instance.new("UIPadding", page)
+    padding.PaddingLeft = UDim.new(0,12)
+    padding.PaddingRight = UDim.new(0,12)
+    padding.PaddingTop = UDim.new(0,10)
+    padding.PaddingBottom = UDim.new(0,10)
 
-    -- auto canvas resize
     layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        page.CanvasSize = UDim2.new(0,0,0, layout.AbsoluteContentSize.Y + 12)
+        page.CanvasSize = UDim2.new(0,0,0, layout.AbsoluteContentSize.Y)
     end)
 
     table.insert(self.Tabs, {Button = tabBtn, Page = page})
@@ -208,11 +208,11 @@ function Library:AddTab(name)
     return page
 end
 
--- ADD ELEMENTS (store ids)
+-- ADD ELEMENTS WITH FULL WIDTH
 function Library:AddLabel(tab, text)
     local id = genId("label")
     local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1,-20,0,24)
+    lbl.Size = UDim2.new(1,-24,0,24)
     lbl.Text = text or ""
     lbl.TextColor3 = THEME.Text
     lbl.Font = Enum.Font.Gotham
@@ -226,7 +226,7 @@ end
 function Library:AddButton(tab, text, callback)
     local id = genId("button")
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0,180,0,34)
+    btn.Size = UDim2.new(1,-24,0,34)
     btn.Text = text or "Button"
     btn.Font = Enum.Font.GothamBold
     btn.TextSize = 14
@@ -242,7 +242,7 @@ end
 function Library:AddToggle(tab, text, default, callback)
     local id = genId("toggle")
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1,-20,0,34)
+    container.Size = UDim2.new(1,-24,0,34)
     container.BackgroundTransparency = 1
     container.Parent = tab
 
@@ -281,7 +281,7 @@ end
 function Library:AddTextbox(tab, placeholder, callback)
     local id = genId("textbox")
     local tb = Instance.new("TextBox")
-    tb.Size = UDim2.new(0,280,0,30)
+    tb.Size = UDim2.new(1,-24,0,30)
     tb.PlaceholderText = placeholder or ""
     tb.TextColor3 = THEME.Text
     tb.Font = Enum.Font.Gotham
@@ -300,7 +300,7 @@ function Library:AddDropdown(tab, labelText, options, callback)
     local id = genId("dropdown")
     options = options or {}
     local dd = Instance.new("Frame")
-    dd.Size = UDim2.new(0,280,0,34)
+    dd.Size = UDim2.new(1,-24,0,34)
     dd.BackgroundColor3 = THEME.Secondary
     dd.Parent = tab
     Instance.new("UICorner", dd).CornerRadius = UDim.new(0,6)
@@ -381,7 +381,6 @@ function Library:AddDropdown(tab, labelText, options, callback)
     self.Elements[id] = {type="dropdown", instance=dd, label=lbl, list=list, rebuild=rebuild, options=options, callback=callback}
     return id, dd
 end
-
 
 -- UPDATE FUNCTIONS
 function Library:UpdateLabel(id, newText)
