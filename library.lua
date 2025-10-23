@@ -117,7 +117,8 @@ function Library.new(cfg)
     self.Open = false
     self.LastPosition = self.UI.Main.Position
 
-    -- 🧲 Globales Dragging für das ganze Fenster (nicht nur Topbar)
+
+        -- 🧲 Globales Dragging für das ganze Fenster (nicht nur Topbar)
     local UIS = game:GetService("UserInputService")
     local dragging = false
     local dragStart, startPos
@@ -152,6 +153,7 @@ function Library.new(cfg)
     		updateDrag(input)
     	end
     end)
+
     
 
     -- Open/close click
