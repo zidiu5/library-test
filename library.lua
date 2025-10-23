@@ -117,27 +117,42 @@ function Library.new(cfg)
     self.Open = false
     self.LastPosition = self.UI.Main.Position
 
-    -- Main drag
-    local dragging, dragStart, startPos
+    -- 🧲 Globales Dragging für das ganze Fenster (nicht nur Topbar)
+    local UIS = game:GetService("UserInputService")
+    local dragging = false
+    local dragStart, startPos
+    
     local function updateDrag(input)
-        local delta = input.Position - dragStart
-        local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        self.UI.Main.Position = newPos
-        self.LastPosition = newPos
+    	if not dragging then return end
+    	local delta = input.Position - dragStart
+    	self.UI.Main.Position = UDim2.new(
+    		startPos.X.Scale,
+    		startPos.X.Offset + delta.X,
+    		startPos.Y.Scale,
+    		startPos.Y.Offset + delta.Y
+    	)
+    	self.LastPosition = self.UI.Main.Position
     end
-    self.UI.Topbar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = self.UI.Main.Position
-        end
+    
+    self.UI.Main.InputBegan:Connect(function(input)
+    	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+    		dragging = true
+    		dragStart = input.Position
+    		startPos = self.UI.Main.Position
+    		input.Changed:Connect(function()
+    			if input.UserInputState == Enum.UserInputState.End then
+    				dragging = false
+    			end
+    		end)
+    	end
     end)
-    self.UI.Topbar.InputChanged:Connect(function(input)
-        if dragging then updateDrag(input) end
+    
+    UIS.InputChanged:Connect(function(input)
+    	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+    		updateDrag(input)
+    	end
     end)
-    self.UI.Topbar.InputEnded:Connect(function()
-        dragging = false
-    end)
+    
 
     -- Open/close click
     self.UI.OpenButton.MouseButton1Click:Connect(function()
