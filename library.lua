@@ -70,17 +70,43 @@ local function createBaseGui(title)
     titleLabel.BackgroundTransparency = 1
     titleLabel.Parent = topbar
 
-    -- Tabs left
+
+
+    
+    -- Tabs left (überarbeitet mit Abstand und Padding)
     local tabFrame = Instance.new("Frame")
-    tabFrame.Size = UDim2.new(0,140,1,-40)
-    tabFrame.Position = UDim2.new(0,0,0,40)
+    tabFrame.Size = UDim2.new(0, 140, 1, -40) -- passt zur Main-Height minus Topbar
+    tabFrame.Position = UDim2.new(0, 0, 0, 40)
     tabFrame.BackgroundColor3 = THEME.Secondary
     tabFrame.Parent = main
-    local tabLayout = Instance.new("UIListLayout", tabFrame)
-    tabLayout.Padding = UDim.new(0,6)
+    
+    -- Padding für Abstand zum Topbar-Titel
+    local tabPadding = Instance.new("UIPadding")
+    tabPadding.PaddingTop = UDim.new(0, 10) -- Abstand von 10 Pixeln zur Topbar
+    tabPadding.PaddingLeft = UDim.new(0, 0)
+    tabPadding.PaddingRight = UDim.new(0, 0)
+    tabPadding.PaddingBottom = UDim.new(0, 6) -- optional unten Padding
+    tabPadding.Parent = tabFrame
+    
+    -- ScrollFrame für Tabs, falls viele Tabs hinzukommen
+    local tabScroll = Instance.new("ScrollingFrame")
+    tabScroll.Size = UDim2.new(1, 0, 1, 0)
+    tabScroll.CanvasSize = UDim2.new(0, 0, 0, 10)
+    tabScroll.ScrollBarThickness = 6
+    tabScroll.BackgroundTransparency = 1
+    tabScroll.Parent = tabFrame
+    
+    -- UIListLayout für Tabs
+    local tabLayout = Instance.new("UIListLayout", tabScroll)
+    tabLayout.Padding = UDim.new(0, 6) -- Abstand zwischen Tabs
     tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
     tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    tabLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 
+
+
+
+    
     -- Content right
     local content = Instance.new("Frame")
     content.Size = UDim2.new(1,-140,1,-40)
