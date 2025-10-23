@@ -88,7 +88,6 @@ local function createBaseGui(title)
     tabPadding.PaddingBottom = UDim.new(0, 6) -- optional unten Padding
     tabPadding.Parent = tabFrame
     
-    -- ScrollFrame für Tabs, falls viele Tabs hinzukommen
     local tabScroll = Instance.new("ScrollingFrame")
     tabScroll.Size = UDim2.new(1, 0, 1, 0)
     tabScroll.CanvasSize = UDim2.new(0, 0, 0, 10)
@@ -96,12 +95,18 @@ local function createBaseGui(title)
     tabScroll.BackgroundTransparency = 1
     tabScroll.Parent = tabFrame
     
-    -- UIListLayout für Tabs
     local tabLayout = Instance.new("UIListLayout", tabScroll)
     tabLayout.Padding = UDim.new(0, 6) -- Abstand zwischen Tabs
     tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
     tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     tabLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+    
+    local tabPadding = Instance.new("UIPadding", tabScroll)
+    tabPadding.PaddingTop = UDim.new(0, 10) -- Abstand zum Topbar-Titel
+    tabPadding.PaddingLeft = UDim.new(0, 0)
+    tabPadding.PaddingRight = UDim.new(0, 0)
+    tabPadding.PaddingBottom = UDim.new(0, 6)
+
 
 
 
