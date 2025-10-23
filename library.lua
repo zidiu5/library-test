@@ -117,26 +117,39 @@ function Library.new(cfg)
     self.Open = false
     self.LastPosition = self.UI.Main.Position
 
-    -- Main drag
-    local dragging, dragStart, startPos
+    local UIS = game:GetService("UserInputService")
+    local dragging = false
+    local dragStart, startPos
+    
     local function updateDrag(input)
-        local delta = input.Position - dragStart
-        local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        self.UI.Main.Position = newPos
-        self.LastPosition = newPos
+    	if not dragging then return end
+    	local delta = input.Position - dragStart
+    	self.UI.Main.Position = UDim2.new(
+    		startPos.X.Scale,
+    		startPos.X.Offset + delta.X,
+    		startPos.Y.Scale,
+    		startPos.Y.Offset + delta.Y
+    	)
+    	self.LastPosition = self.UI.Main.Position
     end
-    self.UI.Topbar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = self.UI.Main.Position
-        end
+    
+    self.UI.Main.InputBegan:Connect(function(input)
+    	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+    		dragging = true
+    		dragStart = input.Position
+    		startPos = self.UI.Main.Position
+    		input.Changed:Connect(function()
+    			if input.UserInputState == Enum.UserInputState.End then
+    				dragging = false
+    			end
+    		end)
+    	end
     end)
-    self.UI.Topbar.InputChanged:Connect(function(input)
-        if dragging then updateDrag(input) end
-    end)
-    self.UI.Topbar.InputEnded:Connect(function()
-        dragging = false
+    
+    UIS.InputChanged:Connect(function(input)
+    	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+    		updateDrag(input)
+    	end
     end)
 
     -- Open/close click
@@ -321,24 +334,33 @@ function Library:AddDropdown(tab, labelText, options, callback)
     btn.Font = Enum.Font.GothamBold
     btn.TextSize = 16
 
+    -- Dropdown Liste
     local list = Instance.new("Frame", dd)
     list.Position = UDim2.new(0,0,1,6)
     list.Size = UDim2.new(1,0,0,0)
     list.BackgroundColor3 = THEME.Secondary
     list.Visible = false
     Instance.new("UICorner", list).CornerRadius = UDim.new(0,6)
+
     local layout = Instance.new("UIListLayout", list)
-    layout.Padding = UDim.new(0,4)
+    layout.Padding = UDim.new(0,6)
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.VerticalAlignment = Enum.VerticalAlignment.Top
+
+    local padding = Instance.new("UIPadding", list)
+    padding.PaddingTop = UDim.new(0,6)
+    padding.PaddingBottom = UDim.new(0,6)
+    padding.PaddingLeft = UDim.new(0,8)
+    padding.PaddingRight = UDim.new(0,8)
 
     local function rebuild(opts)
         for _,c in pairs(list:GetChildren()) do
             if c:IsA("TextButton") then c:Destroy() end
         end
-        local height = 6
+        local height = 12
         for _,opt in ipairs(opts) do
             local o = Instance.new("TextButton", list)
-            o.Size = UDim2.new(1,-8,0,26)
-            o.Position = UDim2.new(0,4,0,0)
+            o.Size = UDim2.new(1,0,0,26)
             o.Text = opt
             o.Font = Enum.Font.Gotham
             o.TextSize = 14
@@ -350,10 +372,25 @@ function Library:AddDropdown(tab, labelText, options, callback)
                 list.Visible = false
                 pcall(callback, opt)
             end)
-            height = height + 30
+            height = height + 32
         end
-        list.Size = UDim2.new(1,0,0, math.max(0, height))
+        list.Size = UDim2.new(1,0,0,height)
     end
+
+    rebuild(options)
+
+    btn.MouseButton1Click:Connect(function()
+        list.Visible = not list.Visible
+        if list.Visible then
+            list.Size = UDim2.new(1,0,0,#options*32+12)
+        else
+            list.Size = UDim2.new(1,0,0,0)
+        end
+    end)
+
+    self.Elements[id] = {type="dropdown", instance=dd, label=lbl, list=list, rebuild=rebuild, options=options, callback=callback}
+    return id, dd
+end
 
     rebuild(options)
 
