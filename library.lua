@@ -1,5 +1,5 @@
---// ⚫🔴 DarkRed Library V6 (Mobile Ready + Draggable OpenButton)
--- Schwarz/Rot Theme | Smooth Animation | Draggable GUI & OpenButton | Tabs + Elements
+--// ⚫🔴 DarkRed Library V6.2 (Mobile Fixed, Spacing + Full Tabs)
+-- Schwarz/Rot Theme | Smooth | Draggable GUI & Button | Tabs + Elemente mit Abstand | Auto ScrollSize
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -27,7 +27,7 @@ local function createBaseGui(title)
     gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     gui.Parent = PlayerGui
 
-    -- Open/Close Button (Draggable auf Mobile)
+    -- Open Button
     local openButton = Instance.new("TextButton")
     openButton.Size = UDim2.new(0,40,0,40)
     openButton.Position = UDim2.new(0,10,0,10)
@@ -36,12 +36,12 @@ local function createBaseGui(title)
     openButton.TextSize = 22
     openButton.TextColor3 = THEME.Text
     openButton.BackgroundColor3 = THEME.Secondary
+    openButton.Active = true
+    openButton.Draggable = true
     openButton.Parent = gui
     Instance.new("UICorner", openButton).CornerRadius = UDim.new(0,8)
-    openButton.Active = true
-    openButton.Draggable = true -- WICHTIG für Mobile
 
-    -- Hauptfenster
+    -- Main Frame
     local main = Instance.new("Frame")
     main.Size = UDim2.new(0,520,0,360)
     main.Position = UDim2.new(0.25,0,0.25,0)
@@ -51,19 +51,6 @@ local function createBaseGui(title)
     main.Parent = gui
     Instance.new("UICorner", main).CornerRadius = UDim.new(0,10)
 
-    -- Drop Shadow
-    local shadow = Instance.new("ImageLabel")
-    shadow.ZIndex = 0
-    shadow.Image = "rbxassetid://1316045217"
-    shadow.ImageColor3 = Color3.new(0,0,0)
-    shadow.ImageTransparency = 0.6
-    shadow.ScaleType = Enum.ScaleType.Slice
-    shadow.SliceCenter = Rect.new(10,10,118,118)
-    shadow.Size = UDim2.new(1,20,1,20)
-    shadow.Position = UDim2.new(0,-10,0,-10)
-    shadow.BackgroundTransparency = 1
-    shadow.Parent = main
-
     -- Topbar
     local topbar = Instance.new("Frame")
     topbar.Size = UDim2.new(1,0,0,40)
@@ -72,7 +59,7 @@ local function createBaseGui(title)
     Instance.new("UICorner", topbar).CornerRadius = UDim.new(0,10)
 
     local titleLabel = Instance.new("TextLabel")
-    titleLabel.Size = UDim2.new(1, -20, 1, 0)
+    titleLabel.Size = UDim2.new(1,-20,1,0)
     titleLabel.Position = UDim2.new(0,10,0,0)
     titleLabel.Text = title or "DarkRed UI"
     titleLabel.Font = Enum.Font.GothamBold
@@ -82,7 +69,7 @@ local function createBaseGui(title)
     titleLabel.BackgroundTransparency = 1
     titleLabel.Parent = topbar
 
-    -- Tabs-Leiste
+    -- Tabs links
     local tabFrame = Instance.new("Frame")
     tabFrame.Size = UDim2.new(0,140,1,-40)
     tabFrame.Position = UDim2.new(0,0,0,40)
@@ -93,9 +80,8 @@ local function createBaseGui(title)
     tabLayout.Padding = UDim.new(0,6)
     tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
     tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    tabLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 
-    -- Content Bereich
+    -- Content rechts
     local content = Instance.new("Frame")
     content.Size = UDim2.new(1,-140,1,-40)
     content.Position = UDim2.new(0,140,0,40)
@@ -125,7 +111,7 @@ function Library.new(cfg)
     self.Open = false
     self.LastPosition = self.UI.Main.Position
 
-    -- GUI Main Frame Drag
+    -- Draggable Hauptframe
     local dragging, dragStart, startPos
     local function updateDrag(input)
         local delta = input.Position - dragStart
@@ -143,11 +129,11 @@ function Library.new(cfg)
     self.UI.Topbar.InputChanged:Connect(function(input)
         if dragging then updateDrag(input) end
     end)
-    self.UI.Topbar.InputEnded:Connect(function(input)
+    self.UI.Topbar.InputEnded:Connect(function()
         dragging = false
     end)
 
-    -- OpenButton Click Event
+    -- OpenButton Funktion
     self.UI.OpenButton.MouseButton1Click:Connect(function()
         self:Toggle()
     end)
@@ -161,7 +147,7 @@ function Library:Toggle()
     self.Open = not self.Open
 end
 
--- Tabs
+-- Tabs erstellen
 function Library:AddTab(name)
     local tabBtn = Instance.new("TextButton")
     tabBtn.Size = UDim2.new(1,-20,0,36)
@@ -183,6 +169,14 @@ function Library:AddTab(name)
     local layout = Instance.new("UIListLayout", page)
     layout.Padding = UDim.new(0,8)
     layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    local padding = Instance.new("UIPadding", page)
+    padding.PaddingLeft = UDim.new(0,12)
+    padding.PaddingTop = UDim.new(0,10)
+
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        page.CanvasSize = UDim2.new(0,0,0,layout.AbsoluteContentSize.Y + 20)
+    end)
 
     table.insert(self.Tabs, {Button = tabBtn, Page = page})
 
@@ -212,7 +206,6 @@ function Library:AddLabel(tab, text)
     lbl.Font = Enum.Font.Gotham
     lbl.TextSize = 14
     lbl.BackgroundTransparency = 1
-    lbl.Position = UDim2.new(0,12,0,0)
     lbl.Parent = tab
     return lbl
 end
@@ -220,7 +213,6 @@ end
 function Library:AddButton(tab, text, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0,180,0,34)
-    btn.Position = UDim2.new(0,12,0,0)
     btn.Text = text
     btn.Font = Enum.Font.GothamBold
     btn.TextSize = 14
@@ -235,7 +227,6 @@ end
 function Library:AddToggle(tab, text, default, callback)
     local container = Instance.new("Frame")
     container.Size = UDim2.new(1,-20,0,34)
-    container.Position = UDim2.new(0,12,0,0)
     container.BackgroundTransparency = 1
     container.Parent = tab
 
