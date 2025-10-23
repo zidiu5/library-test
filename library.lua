@@ -87,25 +87,27 @@ local function createBaseGui(title)
     tabPadding.PaddingRight = UDim.new(0, 0)
     tabPadding.PaddingBottom = UDim.new(0, 6) -- optional unten Padding
     tabPadding.Parent = tabFrame
-    
+
+
+
     local tabScroll = Instance.new("ScrollingFrame")
-    tabScroll.Size = UDim2.new(1, 0, 1, 0)
-    tabScroll.CanvasSize = UDim2.new(0, 0, 0, 10)
+    tabScroll.Size = UDim2.new(1,0,1,0)
+    tabScroll.CanvasSize = UDim2.new(0,0,0,10)
     tabScroll.ScrollBarThickness = 6
     tabScroll.BackgroundTransparency = 1
     tabScroll.Parent = tabFrame
     
     local tabLayout = Instance.new("UIListLayout", tabScroll)
-    tabLayout.Padding = UDim.new(0, 6) -- Abstand zwischen Tabs
+    tabLayout.Padding = UDim.new(0,6)
     tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
     tabLayout.VerticalAlignment = Enum.VerticalAlignment.Top
     
     local tabPadding = Instance.new("UIPadding", tabScroll)
-    tabPadding.PaddingTop = UDim.new(0, 10) -- Abstand zum Topbar-Titel
-    tabPadding.PaddingLeft = UDim.new(0, 0)
-    tabPadding.PaddingRight = UDim.new(0, 0)
-    tabPadding.PaddingBottom = UDim.new(0, 6)
+    tabPadding.PaddingTop = UDim.new(0,10)    -- Abstand nach oben
+    tabPadding.PaddingLeft = UDim.new(0,6)    -- Abstand nach links
+    tabPadding.PaddingRight = UDim.new(0,6)   -- Abstand nach rechts
+    tabPadding.PaddingBottom = UDim.new(0,6)  -- optional unten
 
 
 
@@ -149,29 +151,37 @@ function Library.new(cfg)
     self.LastPosition = self.UI.Main.Position
 
 
-    -- Main drag (aktuell nur Topbar)
+    -- Main GUI draggable
     local dragging, dragStart, startPos
     local function updateDrag(input)
         local delta = input.Position - dragStart
-        local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        self.UI.Main.Position = newPos
-        self.LastPosition = newPos
+        self.UI.Main.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
     end
     
-    -- Eingaben für Drag
-    self.UI.Main.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+    local function startDrag(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
             startPos = self.UI.Main.Position
+    
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
         end
-    end)
+    end
+    
+    self.UI.Main.InputBegan:Connect(startDrag)
     self.UI.Main.InputChanged:Connect(function(input)
         if dragging then updateDrag(input) end
     end)
-    self.UI.Main.InputEnded:Connect(function()
-        dragging = false
-    end)
+
 
 
     
