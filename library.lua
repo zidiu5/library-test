@@ -70,53 +70,17 @@ local function createBaseGui(title)
     titleLabel.BackgroundTransparency = 1
     titleLabel.Parent = topbar
 
-
-
-    
-    -- Tabs left (überarbeitet mit Abstand und Padding)
+    -- Tabs left
     local tabFrame = Instance.new("Frame")
-    tabFrame.Size = UDim2.new(0, 140, 1, -40) -- passt zur Main-Height minus Topbar
-    tabFrame.Position = UDim2.new(0, 0, 0, 40)
+    tabFrame.Size = UDim2.new(0,140,1,-40)
+    tabFrame.Position = UDim2.new(0,0,0,40)
     tabFrame.BackgroundColor3 = THEME.Secondary
     tabFrame.Parent = main
-    
-    -- Padding für Abstand zum Topbar-Titel
-    local tabPadding = Instance.new("UIPadding")
-    tabPadding.PaddingTop = UDim.new(0, 10) -- Abstand von 10 Pixeln zur Topbar
-    tabPadding.PaddingLeft = UDim.new(0, 0)
-    tabPadding.PaddingRight = UDim.new(0, 0)
-    tabPadding.PaddingBottom = UDim.new(0, 6) -- optional unten Padding
-    tabPadding.Parent = tabFrame
-
-
-
-
-
-    
-    local tabScroll = Instance.new("ScrollingFrame")
-    tabScroll.Size = UDim2.new(1,0,1,0)
-    tabScroll.CanvasSize = UDim2.new(0,0,0,10)
-    tabScroll.ScrollBarThickness = 6
-    tabScroll.BackgroundTransparency = 1
-    tabScroll.Parent = tabFrame
-    
-    local tabLayout = Instance.new("UIListLayout", tabScroll)
+    local tabLayout = Instance.new("UIListLayout", tabFrame)
     tabLayout.Padding = UDim.new(0,6)
     tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-    tabLayout.VerticalAlignment = Enum.VerticalAlignment.Top
-    
-    local tabPadding = Instance.new("UIPadding", tabScroll)
-    tabPadding.PaddingTop = UDim.new(0,10)    -- Abstand nach oben
-    tabPadding.PaddingLeft = UDim.new(0,6)    -- Abstand nach links
-    tabPadding.PaddingRight = UDim.new(0,6)   -- Abstand nach rechts
-    tabPadding.PaddingBottom = UDim.new(0,6)  -- optional unten
+    tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
-
-
-
-
-    
     -- Content right
     local content = Instance.new("Frame")
     content.Size = UDim2.new(1,-140,1,-40)
@@ -153,41 +117,30 @@ function Library.new(cfg)
     self.Open = false
     self.LastPosition = self.UI.Main.Position
 
-
-    -- Main GUI draggable
+    -- Main drag (aktuell nur Topbar)
     local dragging, dragStart, startPos
     local function updateDrag(input)
         local delta = input.Position - dragStart
-        self.UI.Main.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
+        local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        self.UI.Main.Position = newPos
+        self.LastPosition = newPos
     end
-    
-    local function startDrag(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+
+    -- Eingaben für Drag
+    self.UI.Main.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
             dragStart = input.Position
             startPos = self.UI.Main.Position
-    
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
         end
-    end
-    
-    self.UI.Main.InputBegan:Connect(startDrag)
+    end)
     self.UI.Main.InputChanged:Connect(function(input)
         if dragging then updateDrag(input) end
     end)
+    self.UI.Main.InputEnded:Connect(function()
+        dragging = false
+    end)
 
-
-
-    
 
     -- Open/close click
     self.UI.OpenButton.MouseButton1Click:Connect(function()
@@ -343,7 +296,7 @@ function Library:AddTextbox(tab, placeholder, callback)
     return id, tb
 end
 
-    function Library:AddDropdown(tab, labelText, options, callback)
+function Library:AddDropdown(tab, labelText, options, callback)
     local id = genId("dropdown")
     options = options or {}
     local dd = Instance.new("Frame")
