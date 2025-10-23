@@ -90,6 +90,9 @@ local function createBaseGui(title)
 
 
 
+
+
+    
     local tabScroll = Instance.new("ScrollingFrame")
     tabScroll.Size = UDim2.new(1,0,1,0)
     tabScroll.CanvasSize = UDim2.new(0,0,0,10)
