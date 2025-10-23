@@ -1,0 +1,81 @@
+🧱 DarkRed Library — Quick Reference
+📥 Getting Loadstring
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/zidiu5/library-test/refs/heads/main/library.lua"))()
+
+🪟 Creating UI Window
+local UI = Library.new({title = "Mein UI"})
+
+
+Toggle visibility:
+
+UI:Toggle()
+
+📑 Creating Tabs
+local Tab = UI:AddTab("Tab Name")
+
+
+Tabs sind automatisch scrollbar, wenn nötig.
+
+🏷️ Creating Labels
+local Label = UI:AddLabel(Tab, "Label Text")
+
+
+Update Label:
+
+UI:UpdateLabel(Label, "Neuer Text")
+
+🔘 Creating Buttons
+local Button = UI:AddButton(Tab, "Button Text", function()
+    print("Button gedrückt")
+end)
+
+
+Update Button:
+
+UI:UpdateButton(Button, "Neuer Button Text")
+
+🔄 Creating Toggles
+local Toggle = UI:AddToggle(Tab, "Toggle Text", false, function(state)
+    if state then
+        print("Toggle an")
+    else
+        print("Toggle aus")
+    end
+end)
+
+
+Update Toggle:
+
+UI:UpdateToggle(Toggle, true)
+
+📝 Creating Textboxes
+local Box = UI:AddTextbox(Tab, "Schreibe hier...", function(text)
+    print("Eingabe:", text)
+end)
+
+
+Update Textbox:
+
+UI:UpdateTextbox(Box, "Neuer Text")
+
+📂 Creating Dropdowns
+local Dropdown = UI:AddDropdown(Tab, "Wähle etwas", {"Apfel", "Banane", "Kirsche"}, function(opt)
+    print("Auswahl:", opt)
+end)
+
+
+Dropdown aktualisieren:
+
+UI:UpdateDropdown(Dropdown, {"Melone", "Traube", "Birne"}, "Melone")
+
+
+Dropdowns sind scrollbar bei zu vielen Einträgen
+
+Öffnen verschiebt darunterliegende Elemente automatisch nach unten
+
+⚙️ Updating Elements (Overview)
+UI:UpdateLabel(id, newText)
+UI:UpdateButton(id, newText)
+UI:UpdateToggle(id, newValue)
+UI:UpdateTextbox(id, newText)
+UI:UpdateDropdown(id, newOptions, defaultSelect)
