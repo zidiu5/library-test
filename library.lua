@@ -380,21 +380,6 @@ end
 end
 
 
-    rebuild(options)
-
-    btn.MouseButton1Click:Connect(function()
-        list.Visible = not list.Visible
-        if list.Visible then
-            list.Size = UDim2.new(1,0,0,#options*30)
-        else
-            list.Size = UDim2.new(1,0,0,0)
-        end
-    end)
-
-    self.Elements[id] = {type="dropdown", instance=dd, label=lbl, list=list, rebuild=rebuild, options=options, callback=callback}
-    return id, dd
-end
-
 -- UPDATE FUNCTIONS
 function Library:UpdateLabel(id, newText)
     local el = self.Elements[id]
