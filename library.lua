@@ -1,6 +1,6 @@
 -- DarkRed Library V6.3
 -- Adds Update functions for label, textbox, button, toggle, dropdown
--- Mobile-ready, draggable open button, position persisting, padded tab pages
+-- Mobile-ready, draggable open button, position persisting, padded tab pages 
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
