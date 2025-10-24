@@ -419,31 +419,6 @@ function Library:AddDropdown(tab,labelText,options,callback,multiSelect)
     return id, dd
 end
 
-    rebuild(options)
-
-    btn.MouseButton1Click:Connect(function()
-        list.Visible = not list.Visible
-        if list.Visible then
-            list.Size = UDim2.new(1,0,0, math.min(#options*32+12,150))
-        end
-    end)
-
-    self.Elements[id] = {
-        type = "dropdown",
-        container = container,
-        header = dd,
-        label = lbl,
-        list = list,
-        rebuild = rebuild,
-        options = options,
-        selectedOptions = selectedOptions,
-        callback = callback,
-        multiSelect = multiSelect
-    }
-
-    return id, dd
-end
-
 
 -- UPDATE FUNCTIONS
 function Library:UpdateLabel(id,newText)
