@@ -345,57 +345,57 @@ function Library:AddDropdown(tab,labelText,options,callback,multiSelect)
     local selectedOptions = {}
 
     local function rebuild(opts)
-        for _,c in pairs(list:GetChildren()) do
-            if c:IsA("TextButton") then c:Destroy() end
-        end
-        local totalHeight = 12
-        for _,opt in ipairs(opts) do
-            local o = Instance.new("TextButton", list)
-            o.Size = UDim2.new(1,0,0,26)
-            o.Text = opt
-            o.Font = Enum.Font.Gotham
-            o.TextSize = 14
-            o.TextColor3 = THEME.Text
-            o.BackgroundColor3 = selectedOptions[opt] and THEME.Accent or THEME.Background
-            Instance.new("UICorner", o).CornerRadius = UDim.new(0,6)
-
-            o.MouseButton1Click:Connect(function()
-                if multiSelect then
-                    selectedOptions[opt] = not selectedOptions[opt]
-                else
-                    -- Single select: reset all
-                    for k,_ in pairs(selectedOptions) do selectedOptions[k]=false end
-                    selectedOptions[opt]=true
-                end
-
-                -- Update colors
-                for _,btn in pairs(list:GetChildren()) do
-                    if btn:IsA("TextButton") then
-                        btn.BackgroundColor3 = selectedOptions[btn.Text] and THEME.Accent or THEME.Background
-                    end
-                end
-
-                -- Update label
-                local display = {}
-                for k,v in pairs(selectedOptions) do
-                    if v then table.insert(display,k) end
-                end
-                lbl.Text = #display>0 and table.concat(display,", ") or "Choose"
-
-                pcall(callback, selectedOptions)
-
-                if not multiSelect then
-                    list.Visible = false
-                end
-            end)
-
-            totalHeight = totalHeight + 32
-        end
-
-        list.CanvasSize = UDim2.new(0,0,totalHeight)
-        local visibleH = math.min(totalHeight,150)
-        list.Size = UDim2.new(1,0,0, visibleH)
+    -- alte Optionen entfernen
+    for _,c in pairs(list:GetChildren()) do
+        if c:IsA("TextButton") then c:Destroy() end
     end
+
+    local totalHeight = 6 -- Padding oben
+    for _,opt in ipairs(opts) do
+        local o = Instance.new("TextButton", list)
+        o.Size = UDim2.new(1,0,0,26)
+        o.Text = opt
+        o.Font = Enum.Font.Gotham
+        o.TextSize = 14
+        o.TextColor3 = THEME.Text
+        o.BackgroundColor3 = selectedOptions[opt] and THEME.Accent or THEME.Background
+        Instance.new("UICorner", o).CornerRadius = UDim.new(0,6)
+
+        o.MouseButton1Click:Connect(function()
+            if multiSelect then
+                selectedOptions[opt] = not selectedOptions[opt]
+            else
+                for k,_ in pairs(selectedOptions) do selectedOptions[k]=false end
+                selectedOptions[opt]=true
+            end
+
+            -- Farben aktualisieren
+            for _,btn in pairs(list:GetChildren()) do
+                if btn:IsA("TextButton") then
+                    btn.BackgroundColor3 = selectedOptions[btn.Text] and THEME.Accent or THEME.Background
+                end
+            end
+
+            -- Label aktualisieren
+            local display = {}
+            for k,v in pairs(selectedOptions) do
+                if v then table.insert(display,k) end
+            end
+            lbl.Text = #display>0 and table.concat(display,", ") or "Choose"
+
+            pcall(callback, selectedOptions)
+
+            if not multiSelect then
+                list.Visible = false
+            end
+        end)
+
+        totalHeight = totalHeight + 26 + 6 -- Button Höhe + Padding
+    end
+
+    list.CanvasSize = UDim2.new(0,0,totalHeight)
+    list.Size = UDim2.new(1,0,0, math.min(totalHeight, 150)) -- max. 150px Höhe
+end
 
     rebuild(options)
 
