@@ -289,14 +289,15 @@ end
 
 function Library:AddDropdown(tab,labelText,options,callback,multiSelect)
     local id=genId("dropdown")
-    options = options or {}
+    options=options or {}
     multiSelect = multiSelect or false
 
+    local selectedOptions = {}
+
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1,-24,0,34)
+    container.Size = UDim2.new(1,-24,0,34) -- nur Header-Höhe initial
     container.BackgroundTransparency = 1
     container.Parent = tab
-    container.AutomaticSize = Enum.AutomaticSize.Y
 
     local dd = Instance.new("Frame")
     dd.Size = UDim2.new(1,0,0,34)
@@ -324,7 +325,7 @@ function Library:AddDropdown(tab,labelText,options,callback,multiSelect)
     btn.TextSize = 16
 
     local list = Instance.new("ScrollingFrame", container)
-    list.Position = UDim2.new(0,0,0,34 + 6)
+    list.Position = UDim2.new(0,0,0,34+6)
     list.Size = UDim2.new(1,0,0,0)
     list.BackgroundColor3 = THEME.Secondary
     list.Visible = false
@@ -342,59 +343,80 @@ function Library:AddDropdown(tab,labelText,options,callback,multiSelect)
     padding.PaddingLeft = UDim.new(0,8)
     padding.PaddingRight = UDim.new(0,8)
 
-    local selectedOptions = {}
-
     local function rebuild(opts)
-    -- alte Optionen entfernen
-    for _,c in pairs(list:GetChildren()) do
-        if c:IsA("TextButton") then c:Destroy() end
-    end
+        for _,c in pairs(list:GetChildren()) do
+            if c:IsA("TextButton") then c:Destroy() end
+        end
 
-    local totalHeight = 6 -- Padding oben
-    for _,opt in ipairs(opts) do
-        local o = Instance.new("TextButton", list)
-        o.Size = UDim2.new(1,0,0,26)
-        o.Text = opt
-        o.Font = Enum.Font.Gotham
-        o.TextSize = 14
-        o.TextColor3 = THEME.Text
-        o.BackgroundColor3 = selectedOptions[opt] and THEME.Accent or THEME.Background
-        Instance.new("UICorner", o).CornerRadius = UDim.new(0,6)
+        local totalHeight = 6
+        for _,opt in ipairs(opts) do
+            local o = Instance.new("TextButton", list)
+            o.Size = UDim2.new(1,0,0,26)
+            o.Text = opt
+            o.Font = Enum.Font.Gotham
+            o.TextSize = 14
+            o.TextColor3 = THEME.Text
+            o.BackgroundColor3 = selectedOptions[opt] and THEME.Accent or THEME.Background
+            Instance.new("UICorner", o).CornerRadius = UDim.new(0,6)
 
-        o.MouseButton1Click:Connect(function()
-            if multiSelect then
-                selectedOptions[opt] = not selectedOptions[opt]
-            else
-                for k,_ in pairs(selectedOptions) do selectedOptions[k]=false end
-                selectedOptions[opt]=true
-            end
-
-            -- Farben aktualisieren
-            for _,btn in pairs(list:GetChildren()) do
-                if btn:IsA("TextButton") then
-                    btn.BackgroundColor3 = selectedOptions[btn.Text] and THEME.Accent or THEME.Background
+            o.MouseButton1Click:Connect(function()
+                if multiSelect then
+                    selectedOptions[opt] = not selectedOptions[opt]
+                else
+                    for k,_ in pairs(selectedOptions) do selectedOptions[k]=false end
+                    selectedOptions[opt]=true
                 end
-            end
 
-            -- Label aktualisieren
-            local display = {}
-            for k,v in pairs(selectedOptions) do
-                if v then table.insert(display,k) end
-            end
-            lbl.Text = #display>0 and table.concat(display,", ") or "Choose"
+                -- Farben aktualisieren
+                for _,btn in pairs(list:GetChildren()) do
+                    if btn:IsA("TextButton") then
+                        btn.BackgroundColor3 = selectedOptions[btn.Text] and THEME.Accent or THEME.Background
+                    end
+                end
 
-            pcall(callback, selectedOptions)
+                -- Label aktualisieren
+                local display = {}
+                for k,v in pairs(selectedOptions) do
+                    if v then table.insert(display,k) end
+                end
+                lbl.Text = #display>0 and table.concat(display,", ") or "Choose"
 
-            if not multiSelect then
-                list.Visible = false
-            end
-        end)
+                pcall(callback, selectedOptions)
 
-        totalHeight = totalHeight + 26 + 6 -- Button Höhe + Padding
+                if not multiSelect then
+                    list.Visible = false
+                end
+            end)
+
+            totalHeight = totalHeight + 26 + 6
+        end
+
+        list.CanvasSize = UDim2.new(0,0,totalHeight)
+        list.Size = UDim2.new(1,0,0, math.min(totalHeight, 150)) -- max 150px sichtbar
     end
 
-    list.CanvasSize = UDim2.new(0,0,totalHeight)
-    list.Size = UDim2.new(1,0,0, math.min(totalHeight, 150)) -- max. 150px Höhe
+    rebuild(options)
+
+    btn.MouseButton1Click:Connect(function()
+        list.Visible = not list.Visible
+        if list.Visible then
+            list.Size = UDim2.new(1,0,0, math.min(list.CanvasSize.Y.Offset, 150))
+        end
+    end)
+
+    self.Elements[id] = {
+        type = "dropdown",
+        container = container,
+        header = dd,
+        label = lbl,
+        list = list,
+        rebuild = rebuild,
+        options = options,
+        selectedOptions = selectedOptions,
+        callback = callback
+    }
+
+    return id, dd
 end
 
     rebuild(options)
