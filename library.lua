@@ -287,21 +287,19 @@ function Library:AddTextbox(tab,placeholder,callback)
     return id,tb
 end
 
-function Library:AddDropdown(tab,labelText,options,callback)
+function Library:AddDropdown(tab,labelText,options,callback,multiSelect)
     local id=genId("dropdown")
-    options=options or {}
+    options = options or {}
+    multiSelect = multiSelect or false
 
-    -- Container holds header (dd) and list (scrolling) so that the container's height grows and pushes following elements down.
     local container = Instance.new("Frame")
-    container.Size = UDim2.new(1,-24,0,34)          -- width respects page padding; height initial 34
+    container.Size = UDim2.new(1,-24,0,34)
     container.BackgroundTransparency = 1
     container.Parent = tab
-    container.AutomaticSize = Enum.AutomaticSize.Y   -- IMPORTANT: container will grow vertically with children
-    -- NOTE: UIListLayout on page will include container's AbsoluteContentSize
+    container.AutomaticSize = Enum.AutomaticSize.Y
 
-    -- Header (visible)
     local dd = Instance.new("Frame")
-    dd.Size = UDim2.new(1,0,0,34) -- full width of container
+    dd.Size = UDim2.new(1,0,0,34)
     dd.BackgroundColor3 = THEME.Secondary
     dd.Parent = container
     Instance.new("UICorner", dd).CornerRadius = UDim.new(0,6)
@@ -325,16 +323,14 @@ function Library:AddDropdown(tab,labelText,options,callback)
     btn.Font = Enum.Font.GothamBold
     btn.TextSize = 16
 
-    -- ScrollingFrame for options inside the container (below header)
     local list = Instance.new("ScrollingFrame", container)
-    list.Position = UDim2.new(0,0,0,34 + 6) -- placed directly below header + 6px gap
+    list.Position = UDim2.new(0,0,0,34 + 6)
     list.Size = UDim2.new(1,0,0,0)
     list.BackgroundColor3 = THEME.Secondary
     list.Visible = false
     list.ScrollBarThickness = 6
     Instance.new("UICorner", list).CornerRadius = UDim.new(0,6)
 
-    -- internal layout for list
     local layout = Instance.new("UIListLayout", list)
     layout.Padding = UDim.new(0,6)
     layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -346,9 +342,9 @@ function Library:AddDropdown(tab,labelText,options,callback)
     padding.PaddingLeft = UDim.new(0,8)
     padding.PaddingRight = UDim.new(0,8)
 
-    -- rebuild function: repopulates options and adjusts list size (and container grows because AutomaticSize=Y)
+    local selectedOptions = {}
+
     local function rebuild(opts)
-        -- destroy option buttons
         for _,c in pairs(list:GetChildren()) do
             if c:IsA("TextButton") then c:Destroy() end
         end
@@ -360,36 +356,56 @@ function Library:AddDropdown(tab,labelText,options,callback)
             o.Font = Enum.Font.Gotham
             o.TextSize = 14
             o.TextColor3 = THEME.Text
-            o.BackgroundColor3 = THEME.Background
+            o.BackgroundColor3 = selectedOptions[opt] and THEME.Accent or THEME.Background
             Instance.new("UICorner", o).CornerRadius = UDim.new(0,6)
+
             o.MouseButton1Click:Connect(function()
-                lbl.Text = opt
-                list.Visible = false
-                pcall(callback, opt)
+                if multiSelect then
+                    selectedOptions[opt] = not selectedOptions[opt]
+                else
+                    -- Single select: reset all
+                    for k,_ in pairs(selectedOptions) do selectedOptions[k]=false end
+                    selectedOptions[opt]=true
+                end
+
+                -- Update colors
+                for _,btn in pairs(list:GetChildren()) do
+                    if btn:IsA("TextButton") then
+                        btn.BackgroundColor3 = selectedOptions[btn.Text] and THEME.Accent or THEME.Background
+                    end
+                end
+
+                -- Update label
+                local display = {}
+                for k,v in pairs(selectedOptions) do
+                    if v then table.insert(display,k) end
+                end
+                lbl.Text = #display>0 and table.concat(display,", ") or "Choose"
+
+                pcall(callback, selectedOptions)
+
+                if not multiSelect then
+                    list.Visible = false
+                end
             end)
+
             totalHeight = totalHeight + 32
         end
 
-        -- set canvas and visible height with a sensible max (so list becomes scrollable if too tall)
-        list.CanvasSize = UDim2.new(0,0,0,totalHeight)
-        local visibleH = math.min(totalHeight, 150) -- max 150px visible
+        list.CanvasSize = UDim2.new(0,0,totalHeight)
+        local visibleH = math.min(totalHeight,150)
         list.Size = UDim2.new(1,0,0, visibleH)
-        list.Visible = list.Visible -- keep current visibility state
-        -- container.AutomaticSize will make the container height = header(34) + gap(6) + visibleH (if visible) or header height only
     end
 
     rebuild(options)
 
-    -- toggle visibility: when opening, ensure list.Visible = true and focus; container will grow and push others down
     btn.MouseButton1Click:Connect(function()
         list.Visible = not list.Visible
         if list.Visible then
-            -- ensure list size respects current options (in case options changed)
             list.Size = UDim2.new(1,0,0, math.min(#options*32+12,150))
         end
     end)
 
-    -- Save element
     self.Elements[id] = {
         type = "dropdown",
         container = container,
@@ -398,12 +414,14 @@ function Library:AddDropdown(tab,labelText,options,callback)
         list = list,
         rebuild = rebuild,
         options = options,
-        callback = callback
+        selectedOptions = selectedOptions,
+        callback = callback,
+        multiSelect = multiSelect
     }
 
-    -- return id and header frame for backward compatibility
     return id, dd
 end
+
 
 -- UPDATE FUNCTIONS
 function Library:UpdateLabel(id,newText)
