@@ -291,64 +291,70 @@ function Library:AddDropdown(tab, labelText, options, callback, multiSelect)
     local id = genId("dropdown")
     options = options or {}
     multiSelect = multiSelect or false
-
     local selectedOptions = {}
 
+    -- Container
     local container = Instance.new("Frame")
     container.Size = UDim2.new(1, -24, 0, 34)
     container.BackgroundTransparency = 1
     container.Parent = tab
 
-    local dd = Instance.new("Frame")
-    dd.Size = UDim2.new(1, 0, 0, 34)
-    dd.BackgroundColor3 = THEME.Secondary
-    dd.Parent = container
-    Instance.new("UICorner", dd).CornerRadius = UDim.new(0, 6)
+    -- Hauptbutton
+    local main = Instance.new("TextButton")
+    main.Size = UDim2.new(1, 0, 0, 34)
+    main.BackgroundColor3 = THEME.Secondary
+    main.Text = ""
+    main.AutoButtonColor = false
+    main.Parent = container
+    main.ZIndex = 2
+    Instance.new("UICorner", main).CornerRadius = UDim.new(0, 6)
 
-    local lbl = Instance.new("TextLabel", dd)
+    -- Label
+    local lbl = Instance.new("TextLabel")
     lbl.Size = UDim2.new(1, -28, 1, 0)
     lbl.Position = UDim2.new(0, 8, 0, 0)
-    lbl.Text = labelText or (options[1] or "Choose")
-    lbl.Font = Enum.Font.Gotham
-    lbl.TextColor3 = THEME.Text
-    lbl.TextSize = 14
     lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = THEME.Text
     lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 14
+    lbl.Text = labelText or (options[1] or "Choose")
+    lbl.Parent = main
+    lbl.ZIndex = 3
 
-    local btn = Instance.new("TextButton", dd)
-    btn.Size = UDim2.new(0, 26, 0, 26)
-    btn.Position = UDim2.new(1, -26, 0.5, -13)
-    btn.Text = "▾"
-    btn.BackgroundTransparency = 1
-    btn.TextColor3 = THEME.Text
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 16
+    -- Pfeil
+    local arrow = Instance.new("TextLabel")
+    arrow.Size = UDim2.new(0, 20, 1, 0)
+    arrow.Position = UDim2.new(1, -22, 0, 0)
+    arrow.BackgroundTransparency = 1
+    arrow.Text = "▾"
+    arrow.TextColor3 = THEME.Text
+    arrow.Font = Enum.Font.GothamBold
+    arrow.TextSize = 16
+    arrow.Parent = main
+    arrow.ZIndex = 3
 
-    local list = Instance.new("ScrollingFrame", container)
-    list.Position = UDim2.new(0, 0, 0, 34 + 6)
+    -- ScrollingFrame
+    local list = Instance.new("ScrollingFrame")
+    list.Position = UDim2.new(0, 0, 0, 38)
     list.Size = UDim2.new(1, 0, 0, 0)
     list.BackgroundColor3 = THEME.Secondary
     list.Visible = false
     list.ScrollBarThickness = 6
     list.CanvasSize = UDim2.new(0, 0, 0, 0)
+    list.ZIndex = 5
+    list.ClipsDescendants = true
     Instance.new("UICorner", list).CornerRadius = UDim.new(0, 6)
+    list.Parent = container
 
-    local layout = Instance.new("UIListLayout", list)
+    local layout = Instance.new("UIListLayout")
     layout.Padding = UDim.new(0, 6)
-    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    layout.VerticalAlignment = Enum.VerticalAlignment.Top
+    layout.Parent = list
 
-    local padding = Instance.new("UIPadding", list)
-    padding.PaddingTop = UDim.new(0, 6)
-    padding.PaddingBottom = UDim.new(0, 6)
-    padding.PaddingLeft = UDim.new(0, 8)
-    padding.PaddingRight = UDim.new(0, 8)
-
-    -- 🔧 Höhe dynamisch anpassen
-    local function updateSize()
-        local totalHeight = layout.AbsoluteContentSize.Y + 12
-        list.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
-        list.Size = UDim2.new(1, 0, 0, math.min(totalHeight, 150))
+    local function updateHeight()
+        local h = layout.AbsoluteContentSize.Y + 12
+        list.CanvasSize = UDim2.new(0, 0, 0, h)
+        list.Size = UDim2.new(1, 0, 0, math.min(h, 150))
     end
 
     local function rebuild(opts)
@@ -357,60 +363,59 @@ function Library:AddDropdown(tab, labelText, options, callback, multiSelect)
         end
 
         for _, opt in ipairs(opts) do
-            local o = Instance.new("TextButton", list)
-            o.Size = UDim2.new(1, 0, 0, 26)
+            local o = Instance.new("TextButton")
+            o.Size = UDim2.new(1, -12, 0, 28)
+            o.BackgroundColor3 = selectedOptions[opt] and THEME.Accent or THEME.Background
+            o.TextColor3 = THEME.Text
             o.Text = opt
             o.Font = Enum.Font.Gotham
             o.TextSize = 14
-            o.TextColor3 = THEME.Text
-            o.BackgroundColor3 = selectedOptions[opt] and THEME.Accent or THEME.Background
+            o.Parent = list
+            o.ZIndex = 6
             Instance.new("UICorner", o).CornerRadius = UDim.new(0, 6)
 
             o.MouseButton1Click:Connect(function()
                 if multiSelect then
                     selectedOptions[opt] = not selectedOptions[opt]
                 else
-                    for k, _ in pairs(selectedOptions) do selectedOptions[k] = false end
+                    selectedOptions = {}
                     selectedOptions[opt] = true
                 end
 
-                for _, btn in pairs(list:GetChildren()) do
-                    if btn:IsA("TextButton") then
-                        btn.BackgroundColor3 = selectedOptions[btn.Text] and THEME.Accent or THEME.Background
+                for _, b in ipairs(list:GetChildren()) do
+                    if b:IsA("TextButton") then
+                        b.BackgroundColor3 = selectedOptions[b.Text] and THEME.Accent or THEME.Background
                     end
                 end
 
                 local chosen = {}
-                for k, v in pairs(selectedOptions) do
-                    if v then table.insert(chosen, k) end
-                end
+                for k, v in pairs(selectedOptions) do if v then table.insert(chosen, k) end end
                 lbl.Text = #chosen > 0 and table.concat(chosen, ", ") or "Choose"
 
                 pcall(callback, selectedOptions)
-
-                if not multiSelect then
-                    list.Visible = false
-                end
+                if not multiSelect then list.Visible = false end
             end)
         end
-
-        updateSize()
+        updateHeight()
     end
 
+    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateHeight)
     rebuild(options)
-    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateSize)
 
-    btn.MouseButton1Click:Connect(function()
-        list.Visible = not list.Visible
-        if list.Visible then
-            updateSize()
+    -- Dropdown auf/zu
+    local open = false
+    main.MouseButton1Click:Connect(function()
+        open = not open
+        list.Visible = open
+        if open then
+            updateHeight()
         end
     end)
 
     self.Elements[id] = {
         type = "dropdown",
         container = container,
-        header = dd,
+        main = main,
         label = lbl,
         list = list,
         rebuild = rebuild,
@@ -420,8 +425,9 @@ function Library:AddDropdown(tab, labelText, options, callback, multiSelect)
         multiSelect = multiSelect
     }
 
-    return id, dd
+    return id, main
 end
+
 
 
 
