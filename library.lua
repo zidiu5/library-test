@@ -1,4 +1,4 @@
--- DarkRed Library V6.3.5 (Dropdown pushes content down; dropdown list is a ScrollingFrame inside an auto-sizing container)
+-- DarkRed Library V6.3.6 (Dropdown pushes content down; dropdown list is a ScrollingFrame inside an auto-sizing container)
 -- Adds Update functions for label, textbox, button, toggle, dropdown
 -- Mobile-ready, draggable open button, position persisting, padded tab pages
 -- Features: Auto-fullwidth elements, auto-scroll only when needed, dropdown expands and pushes content
