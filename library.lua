@@ -1,4 +1,4 @@
--- DarkRed Library V6.3.6 (Dropdown pushes content down; dropdown list is a ScrollingFrame inside an auto-sizing container)
+-- DarkRed Library V6.3.4 (Dropdown pushes content down; dropdown list is a ScrollingFrame inside an auto-sizing container)
 -- Adds Update functions for label, textbox, button, toggle, dropdown
 -- Mobile-ready, draggable open button, position persisting, padded tab pages
 -- Features: Auto-fullwidth elements, auto-scroll only when needed, dropdown expands and pushes content
@@ -293,85 +293,74 @@ function Library:AddDropdown(tab, labelText, options, callback, multiSelect)
     multiSelect = multiSelect or false
     local selectedOptions = {}
 
+    -- Container, wächst automatisch nach unten
     local container = Instance.new("Frame")
     container.Size = UDim2.new(1, -24, 0, 34)
     container.BackgroundTransparency = 1
+    container.AutomaticSize = Enum.AutomaticSize.Y
     container.Parent = tab
 
-    -- Header-Button (öffnet das Dropdown)
-    local header = Instance.new("TextButton")
-    header.Size = UDim2.new(1, 0, 0, 34)
-    header.BackgroundColor3 = THEME.Secondary
-    header.Text = ""
-    header.AutoButtonColor = false
-    header.Parent = container
-    Instance.new("UICorner", header).CornerRadius = UDim.new(0, 6)
+    -- Header
+    local dd = Instance.new("Frame")
+    dd.Size = UDim2.new(1, 0, 0, 34)
+    dd.BackgroundColor3 = THEME.Secondary
+    dd.Parent = container
+    Instance.new("UICorner", dd).CornerRadius = UDim.new(0, 6)
 
-    local lbl = Instance.new("TextLabel")
+    local lbl = Instance.new("TextLabel", dd)
     lbl.Size = UDim2.new(1, -28, 1, 0)
     lbl.Position = UDim2.new(0, 8, 0, 0)
-    lbl.BackgroundTransparency = 1
     lbl.Text = labelText or "Choose"
-    lbl.TextColor3 = THEME.Text
     lbl.Font = Enum.Font.Gotham
+    lbl.TextColor3 = THEME.Text
     lbl.TextSize = 14
+    lbl.BackgroundTransparency = 1
     lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.Parent = header
 
-    local arrow = Instance.new("TextLabel")
-    arrow.Size = UDim2.new(0, 20, 1, 0)
-    arrow.Position = UDim2.new(1, -22, 0, 0)
-    arrow.BackgroundTransparency = 1
-    arrow.Text = "▾"
-    arrow.TextColor3 = THEME.Text
-    arrow.Font = Enum.Font.GothamBold
-    arrow.TextSize = 16
-    arrow.Parent = header
+    local btn = Instance.new("TextButton", dd)
+    btn.Size = UDim2.new(0, 26, 0, 26)
+    btn.Position = UDim2.new(1, -26, 0.5, -13)
+    btn.Text = "▾"
+    btn.BackgroundTransparency = 1
+    btn.TextColor3 = THEME.Text
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 16
 
-    -- Liste unterhalb vom Header (nicht überlappend!)
-    local listContainer = Instance.new("Frame")
-    listContainer.Size = UDim2.new(1, 0, 0, 0)
-    listContainer.BackgroundTransparency = 1
-    listContainer.ClipsDescendants = true
-    listContainer.Parent = container
-
-    local list = Instance.new("ScrollingFrame")
+    -- Dropdown-Liste
+    local list = Instance.new("ScrollingFrame", container)
+    list.Position = UDim2.new(0, 0, 0, 34 + 6)
     list.Size = UDim2.new(1, 0, 0, 0)
-    list.CanvasSize = UDim2.new(0, 0, 0, 0)
-    list.ScrollBarThickness = 6
     list.BackgroundColor3 = THEME.Secondary
-    list.Visible = true
-    list.Parent = listContainer
+    list.Visible = false
+    list.ScrollBarThickness = 6
+    list.AutomaticCanvasSize = Enum.AutomaticSize.Y
     Instance.new("UICorner", list).CornerRadius = UDim.new(0, 6)
 
-    local layout = Instance.new("UIListLayout")
+    local layout = Instance.new("UIListLayout", list)
     layout.Padding = UDim.new(0, 6)
-    layout.Parent = list
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.VerticalAlignment = Enum.VerticalAlignment.Top
 
-    local padding = Instance.new("UIPadding")
+    local padding = Instance.new("UIPadding", list)
     padding.PaddingTop = UDim.new(0, 6)
     padding.PaddingBottom = UDim.new(0, 6)
     padding.PaddingLeft = UDim.new(0, 8)
     padding.PaddingRight = UDim.new(0, 8)
-    padding.Parent = list
 
-    local open = false
-
+    -- Rebuild Options
     local function rebuild(opts)
         for _, c in pairs(list:GetChildren()) do
             if c:IsA("TextButton") then c:Destroy() end
         end
 
         for _, opt in ipairs(opts) do
-            local o = Instance.new("TextButton")
-            o.Size = UDim2.new(1, -12, 0, 26)
-            o.BackgroundColor3 = selectedOptions[opt] and THEME.Accent or THEME.Background
+            local o = Instance.new("TextButton", list)
+            o.Size = UDim2.new(1, 0, 0, 26)
             o.Text = opt
-            o.TextColor3 = THEME.Text
             o.Font = Enum.Font.Gotham
             o.TextSize = 14
-            o.AutoButtonColor = false
-            o.Parent = list
+            o.TextColor3 = THEME.Text
+            o.BackgroundColor3 = selectedOptions[opt] and THEME.Accent or THEME.Background
             Instance.new("UICorner", o).CornerRadius = UDim.new(0, 6)
 
             o.MouseButton1Click:Connect(function()
@@ -380,6 +369,7 @@ function Library:AddDropdown(tab, labelText, options, callback, multiSelect)
                 else
                     selectedOptions = {}
                     selectedOptions[opt] = true
+                    list.Visible = false
                 end
 
                 for _, b in pairs(list:GetChildren()) do
@@ -392,57 +382,54 @@ function Library:AddDropdown(tab, labelText, options, callback, multiSelect)
                 for k, v in pairs(selectedOptions) do
                     if v then table.insert(chosen, k) end
                 end
-                lbl.Text = #chosen > 0 and table.concat(chosen, ", ") or labelText or "Choose"
+
+                if #chosen == 0 then
+                    lbl.Text = labelText or "Choose"
+                elseif multiSelect and #chosen > 2 then
+                    lbl.Text = tostring(#chosen) .. " ausgewählt"
+                else
+                    lbl.Text = table.concat(chosen, ", ")
+                end
 
                 pcall(callback, selectedOptions)
-                if not multiSelect then
-                    open = false
-                    listContainer:TweenSize(UDim2.new(1, 0, 0, 0), "Out", "Quad", 0.25, true)
-                end
             end)
         end
 
         task.wait()
         local totalHeight = layout.AbsoluteContentSize.Y + 12
+        local visibleHeight = math.min(totalHeight, 150)
         list.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
-        list.Size = UDim2.new(1, 0, 0, math.min(totalHeight, 150))
+        list.Size = UDim2.new(1, 0, 0, visibleHeight)
     end
-
-    layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        if open then
-            local totalHeight = layout.AbsoluteContentSize.Y + 12
-            list.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
-            list.Size = UDim2.new(1, 0, 0, math.min(totalHeight, 150))
-            listContainer:TweenSize(UDim2.new(1, 0, 0, math.min(totalHeight, 150) + 6), "Out", "Quad", 0.25, true)
-        end
-    end)
 
     rebuild(options)
 
-    header.MouseButton1Click:Connect(function()
-        open = not open
-        if open then
+    -- Dropdown öffnen/schließen
+    btn.MouseButton1Click:Connect(function()
+        list.Visible = not list.Visible
+        if list.Visible then
             local totalHeight = layout.AbsoluteContentSize.Y + 12
-            listContainer:TweenSize(UDim2.new(1, 0, 0, math.min(totalHeight, 150) + 6), "Out", "Quad", 0.25, true)
-        else
-            listContainer:TweenSize(UDim2.new(1, 0, 0, 0), "Out", "Quad", 0.25, true)
+            local visibleHeight = math.min(totalHeight, 150)
+            list.Size = UDim2.new(1, 0, 0, visibleHeight)
         end
     end)
 
+    -- Save element
     self.Elements[id] = {
         type = "dropdown",
         container = container,
-        header = header,
+        header = dd,
+        label = lbl,
         list = list,
         rebuild = rebuild,
+        options = options,
         selectedOptions = selectedOptions,
         callback = callback,
         multiSelect = multiSelect
     }
 
-    return id, header
+    return id, dd
 end
-
 
 -- UPDATE FUNCTIONS
 function Library:UpdateLabel(id,newText)
