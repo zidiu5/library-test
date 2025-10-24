@@ -273,6 +273,7 @@ function Library:AddTextbox(tab,placeholder,callback)
     local tb=Instance.new("TextBox")
     tb.Size=UDim2.new(1,-24,0,30)
     tb.PlaceholderText=placeholder or ""
+    tb.Text = ""
     tb.TextColor3=THEME.Text
     tb.Font=Enum.Font.Gotham
     tb.TextSize=14
