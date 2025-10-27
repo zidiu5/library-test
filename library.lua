@@ -1,4 +1,4 @@
--- DarkRed Library V6.3.4 (Dropdown pushes content down; dropdown list is a ScrollingFrame inside an auto-sizing container)
+-- DarkRed Library V6.3.5 (Dropdown pushes content down; dropdown list is a ScrollingFrame inside an auto-sizing container)
 -- Adds Update functions for label, textbox, button, toggle, dropdown
 -- Mobile-ready, draggable open button, position persisting, padded tab pages
 -- Features: Auto-fullwidth elements, auto-scroll only when needed, dropdown expands and pushes content
@@ -68,15 +68,22 @@ local function createBaseGui(title)
     titleLabel.BackgroundTransparency = 1
     titleLabel.Parent = topbar
 
-    local tabFrame = Instance.new("Frame")
+    local tabFrame = Instance.new("ScrollingFrame")
     tabFrame.Size = UDim2.new(0,140,1,-40)
     tabFrame.Position = UDim2.new(0,0,0,40)
     tabFrame.BackgroundColor3 = THEME.Secondary
+    tabFrame.ScrollBarThickness = 6
+    tabFrame.CanvasSize = UDim2.new(0,0,0,0) -- wird per Layout aktualisiert
     tabFrame.Parent = main
+    
     local tabLayout = Instance.new("UIListLayout", tabFrame)
     tabLayout.Padding = UDim.new(0,6)
     tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
     tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    
+    tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        tabFrame.CanvasSize = UDim2.new(0,0,0, tabLayout.AbsoluteContentSize.Y)
+    end)
 
     local content = Instance.new("Frame")
     content.Size = UDim2.new(1,-140,1,-40)
