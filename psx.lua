@@ -1,9 +1,8 @@
--- DarkRed Autofarm (Fast Version)
+-- DarkRed Autofarm (Fast Version + Eggs Tab, Recursive Folder Support)
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/Amity/main/PetSimulatorXRemotes.lua"))()
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/zidiu5/library-test/refs/heads/main/library.lua"))()
 
---// Services
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
@@ -12,21 +11,23 @@ local Things = Workspace:WaitForChild("__THINGS")
 local CoinsFolder = Things:WaitForChild("Coins")
 local PetsFolder = Things:WaitForChild("Pets")
 local OrbsFolder = Things:WaitForChild("Orbs")
+local EggsRoot = ReplicatedStorage.__DIRECTORY:WaitForChild("Eggs")
 
---// Remotes
 local JoinCoin = ReplicatedStorage:WaitForChild("Join Coin")
 local FarmCoin = ReplicatedStorage:WaitForChild("Farm Coin")
 local ClaimOrbs = ReplicatedStorage:WaitForChild("Claim Orbs")
+local BuyEgg = ReplicatedStorage:WaitForChild("Buy Egg")
 
---// Variables
 local farming = false
 local autoCollect = false
 local multiple = false
+local autoHatch = false
 local selectedArea = nil
 local selectedVariant = nil
+local selectedEgg = nil
+local hatchMode = "Single"
 local afterJoinDelay = 0.05
 
---// 🧠 Find Your Own Pets
 local function GetMyPets()
 	local pets = {}
 	for _, pet in pairs(PetsFolder:GetChildren()) do
@@ -37,7 +38,6 @@ local function GetMyPets()
 	return pets
 end
 
---// 🗺️ Find Areas
 local function GetAreas()
 	local areas = {"All"}
 	for _, coin in pairs(CoinsFolder:GetChildren()) do
@@ -50,7 +50,6 @@ local function GetAreas()
 	return areas
 end
 
--- Normalize Dropdown Value
 local function NormalizeDropdownValue(opt)
 	if typeof(opt) == "string" then return opt end
 	if typeof(opt) == "table" then
@@ -61,43 +60,49 @@ local function NormalizeDropdownValue(opt)
 	return opt
 end
 
--- Variants
 local function GetVariants()
 	return {"All","Coins","Diamonds","Crate","Safe","Present","Chest","Vault","Candy Cane"}
 end
 
--- GUI
-local UI = Library.new({title = "Lucky Sucks)"})
-local tab = UI:AddTab("Main")
+local function GetEggs()
+	local eggs = {}
+	for _, folder in pairs(EggsRoot:GetChildren()) do
+		if folder:IsA("Folder") then
+			for _, egg in pairs(folder:GetChildren()) do
+				if egg:IsA("Folder") or egg:IsA("Model") or egg:IsA("Part") then
+					table.insert(eggs, folder.Name .. " / " .. egg.Name)
+				end
+			end
+		end
+	end
+	table.sort(eggs)
+	return eggs
+end
 
--- Multiple Mode Toggle
-UI:AddToggle(tab, "Multiple Mode", false, function(state)
+local UI = Library.new({title = "Lucky Sucks"})
+local tabFarm = UI:AddTab("Farm")
+local tabEggs = UI:AddTab("Eggs")
+
+UI:AddToggle(tabFarm, "Multiple Mode (Each Pet Own Coin)", false, function(state)
 	multiple = state
-	print("🐾 Multiple Mode:", state)
 end)
 
--- Area Dropdown
-local areaDropdown = UI:AddDropdown(tab, "Select Area", GetAreas(), function(opt)
+local areaDropdown = UI:AddDropdown(tabFarm, "Select Area", GetAreas(), function(opt)
 	local val = NormalizeDropdownValue(opt)
 	selectedArea = (val == "All" or not val) and nil or val
-	print("📍 Area:", selectedArea or "All")
 end)
 
-UI:AddButton(tab, "🔁 Refresh Areas", function()
+UI:AddButton(tabFarm, "Refresh Areas", function()
 	UI:UpdateDropdown(areaDropdown, GetAreas(), selectedArea or "All")
 end)
 
--- Variant Dropdown
-UI:AddDropdown(tab, "Select Variant", GetVariants(), function(opt)
+UI:AddDropdown(tabFarm, "Select Variant", GetVariants(), function(opt)
 	local val = NormalizeDropdownValue(opt)
 	selectedVariant = (val == "All" or not val) and nil or val
-	print("💠 Variant:", selectedVariant or "All")
 end)
 
--- AutoCollect
-UI:AddToggle(tab, "Enable Auto Collect", false, function(state)
+UI:AddToggle(tabFarm, "Auto Collect Orbs", false, function(state)
 	autoCollect = state
-	print("💎 AutoCollect:", state)
 	if state then
 		task.spawn(function()
 			while autoCollect do
@@ -116,44 +121,34 @@ UI:AddToggle(tab, "Enable Auto Collect", false, function(state)
 	end
 end)
 
--- Autofarm
-UI:AddToggle(tab, "Enable Autofarm (FAST)", false, function(state)
+UI:AddToggle(tabFarm, "Enable Autofarm", false, function(state)
 	farming = state
-	print("🟢 Autofarm:", state)
-
 	if state then
 		task.spawn(function()
 			while farming do
 				task.wait(0.05)
-
 				local pets = GetMyPets()
 				if #pets == 0 then
 					task.wait(0.3)
 					continue
 				end
-
 				local coins = {}
 				for _, coin in pairs(CoinsFolder:GetChildren()) do
 					if not coin or not coin.Parent then continue end
-
 					local area = coin:GetAttribute("Area")
 					local name = tostring(coin:GetAttribute("Name") or coin.Name)
 					local nameLower = string.lower(name)
-
 					local areaMatch = (not selectedArea or selectedArea == area)
 					local variantMatch = (not selectedVariant or selectedVariant == "All") 
 						or string.find(nameLower, string.lower(selectedVariant), 1, true)
-
 					if areaMatch and variantMatch then
 						table.insert(coins, coin)
 					end
 				end
-
 				if #coins == 0 then
 					task.wait(0.2)
 					continue
 				end
-
 				if multiple then
 					for i, petId in ipairs(pets) do
 						if not farming then break end
@@ -189,9 +184,41 @@ UI:AddToggle(tab, "Enable Autofarm (FAST)", false, function(state)
 	end
 end)
 
-UI:AddButton(tab, "⚠️ Reload Remotes", function()
-	print("🔁 Reloading remotes...")
+UI:AddButton(tabFarm, "Reload Remotes", function()
 	loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/Amity/main/PetSimulatorXRemotes.lua"))()
 end)
 
-print("✅ DarkRed Autofarm (FAST) loaded successfully!")
+local eggDropdown = UI:AddDropdown(tabEggs, "Select Egg", GetEggs(), function(opt)
+	local val = NormalizeDropdownValue(opt)
+	selectedEgg = val
+end)
+
+local modeDropdown = UI:AddDropdown(tabEggs, "Select Mode", {"Single","Triple"}, function(opt)
+	local val = NormalizeDropdownValue(opt)
+	hatchMode = val or "Single"
+end)
+
+UI:AddToggle(tabEggs, "Enable Auto Hatch", false, function(state)
+	autoHatch = state
+	if state then
+		task.spawn(function()
+			while autoHatch do
+				if selectedEgg then
+					local split = string.split(selectedEgg, " / ")
+					local folder, eggName = split[1], split[2]
+					local args = {eggName, hatchMode == "Triple"}
+					pcall(function()
+						BuyEgg:InvokeServer(unpack(args))
+					end)
+				end
+				task.wait(0.2)
+			end
+		end)
+	end
+end)
+
+UI:AddButton(tabEggs, "Refresh Eggs", function()
+	UI:UpdateDropdown(eggDropdown, GetEggs(), selectedEgg or "")
+end)
+
+print("✅ DarkRed Autofarm (FAST + Eggs Tab, Recursive) loaded successfully!")
