@@ -1,4 +1,4 @@
--- Services
+ich will die gui mit v3 und den fixed esp mehr nicht: -- Services
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -326,163 +326,108 @@ local function makeTab(name)
                     end
                 end)
 
-
-                ---------------------------------------------------------------------
-                -- LIVE-UPDATING ESP SYSTEM (V1, V2, V3 Name ESP)
-                ---------------------------------------------------------------------
-                
+                -- ESP Toggle
+                local espToggle = makeButtonWithDescription("ESP", "Toggle ESP on all players")
                 local espActive = false
-                local espV2Active = false
-                local espV3Active = false
-                
-                local espBoxes = {}      -- v1
-                local espHitboxes = {}   -- v2
-                local espNames = {}      -- v3
-                
-                local function clearESP(tbl)
-                    for _, obj in pairs(tbl) do
-                        if obj then obj:Destroy() end
-                    end
-                    table.clear(tbl)
-                end
-                
-                ---------------------------------------------------------------------
-                -- ESP V1  (every bodypart box)
-                ---------------------------------------------------------------------
-                local function applyESP_V1(char, plr)
-                    for _, part in ipairs(char:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            local box = Instance.new("BoxHandleAdornment")
-                            box.Adornee = part
-                            box.Size = part.Size
-                            box.AlwaysOnTop = true
-                            box.ZIndex = 10
-                            box.Transparency = 0
-                            box.Color3 = plr.TeamColor.Color
-                            box.Parent = part
-                            table.insert(espBoxes, box)
-                        end
-                    end
-                end
-                
-                ---------------------------------------------------------------------
-                -- ESP V2  (Big hitbox around HumanoidRootPart)
-                ---------------------------------------------------------------------
-                local function applyESP_V2(char, plr)
-                    local root = char:FindFirstChild("HumanoidRootPart")
-                    if not root then return end
-                
-                    local box = Instance.new("BoxHandleAdornment")
-                    box.Adornee = root
-                    box.Size = root.Size * Vector3.new(2.2, 3, 2.2)
-                    box.AlwaysOnTop = true
-                    box.ZIndex = 10
-                    box.Transparency = 0.5
-                    box.Color3 = plr.TeamColor.Color
-                    box.Parent = root
-                
-                    table.insert(espHitboxes, box)
-                end
-                
-                ---------------------------------------------------------------------
-                -- ESP V3  (Name above head, visible everywhere)
-                ---------------------------------------------------------------------
-                local function applyESP_V3(char, plr)
-                    local head = char:FindFirstChild("Head")
-                    if not head then return end
-                
-                    local billboard = Instance.new("BillboardGui")
-                    billboard.Adornee = head
-                    billboard.AlwaysOnTop = true
-                    billboard.Size = UDim2.new(0, 200, 0, 50)
-                    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
-                    billboard.MaxDistance = math.huge
-                    billboard.Parent = head
-                
-                    local label = Instance.new("TextLabel")
-                    label.Size = UDim2.new(1, 0, 1, 0)
-                    label.BackgroundTransparency = 1
-                    label.Text = plr.Name
-                    label.TextScaled = true
-                    label.Font = Enum.Font.GothamBold
-                    label.TextColor3 = plr.TeamColor.Color
-                    label.Parent = billboard
-                
-                    table.insert(espNames, billboard)
-                end
-                
-                ---------------------------------------------------------------------
-                -- Apply ESP to one player
-                ---------------------------------------------------------------------
-                local function applyESP(plr)
-                    if plr == player then return end
-                    if not plr.Character then return end
-                
-                    if espActive then applyESP_V1(plr.Character, plr) end
-                    if espV2Active then applyESP_V2(plr.Character, plr) end
-                    if espV3Active then applyESP_V3(plr.Character, plr) end
-                end
-                
-                ---------------------------------------------------------------------
-                -- AUTO-UPDATE: when someone spawns/dies
-                ---------------------------------------------------------------------
-                Players.PlayerAdded:Connect(function(plr)
-                    plr.CharacterAdded:Connect(function()
-                        task.wait(0.5)
-                        applyESP(plr)
-                    end)
-                end)
-                
-                for _, plr in ipairs(Players:GetPlayers()) do
-                    if plr ~= player then
-                        if plr.Character then applyESP(plr) end
-                        plr.CharacterAdded:Connect(function()
-                            task.wait(0.5)
-                            applyESP(plr)
-                        end)
-                    end
-                end
-                
-                ---------------------------------------------------------------------
-                -- TOGGLE BUTTONS (connect these to your existing buttons)
-                ---------------------------------------------------------------------
-                
-                -- ESP v1 Toggle
+                local espParts = {}
                 espToggle.MouseButton1Click:Connect(function()
                     espActive = not espActive
                     setupToggleVisual(espToggle, espActive)
-                    clearESP(espBoxes)
+
                     if espActive then
-                        for _, plr in ipairs(Players:GetPlayers()) do
-                            applyESP(plr)
+                        for _, plr in pairs(Players:GetPlayers()) do
+                            if plr ~= player and plr.Character then
+                                for _, part in pairs(plr.Character:GetDescendants()) do
+                                    if part:IsA("BasePart") then
+                                        local box = Instance.new("BoxHandleAdornment")
+                                        box.Adornee = part
+                                        box.AlwaysOnTop = true
+                                        box.ZIndex = 10
+                                        box.Size = part.Size
+                                        box.Color3 = Color3.fromRGB(255, 0, 0)
+                                        box.Transparency = 0
+                                        box.Parent = part
+                                        espParts[part] = box
+                                    end
+                                end
+                            end
                         end
+                    else
+                        for _, box in pairs(espParts) do
+                            if box then box:Destroy() end
+                        end
+                        espParts = {}
                     end
                 end)
-                
-                -- ESP v2 Toggle
+
+                -- ESP v2 Toggle (Big Box)
+                local espV2Toggle = makeButtonWithDescription("ESP v2", "Hitbox around HRP")
+                local espV2Active = false
+                local espV2Parts = {}
                 espV2Toggle.MouseButton1Click:Connect(function()
                     espV2Active = not espV2Active
                     setupToggleVisual(espV2Toggle, espV2Active)
-                    clearESP(espHitboxes)
+
                     if espV2Active then
-                        for _, plr in ipairs(Players:GetPlayers()) do
-                            applyESP(plr)
+                        for _, plr in pairs(Players:GetPlayers()) do
+                            if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                                local root = plr.Character.HumanoidRootPart
+                                local box = Instance.new("BoxHandleAdornment")
+                                box.Adornee = root
+                                box.AlwaysOnTop = true
+                                box.ZIndex = 10
+                                box.Size = root.Size * Vector3.new(3, 3, 3)
+                                box.Color3 = Color3.fromRGB(0, 255, 0)
+                                box.Transparency = 0.5
+                                box.Parent = root
+                                espV2Parts[root] = box
+                            end
                         end
+                    else
+                        for _, box in pairs(espV2Parts) do
+                            if box then box:Destroy() end
+                        end
+                        espV2Parts = {}
                     end
                 end)
-                
-                -- ESP v3 (Name ESP)
-                local espV3Toggle = makeButtonWithDescription("ESP v3", "Name above head")
+
+                -- ESP v3 Toggle (Outline only)
+                local espV3Toggle = makeButtonWithDescription("ESP v3", "Outline ESP")
+                local espV3Active = false
+                local espV3Parts = {}
                 espV3Toggle.MouseButton1Click:Connect(function()
                     espV3Active = not espV3Active
                     setupToggleVisual(espV3Toggle, espV3Active)
-                    clearESP(espNames)
+
                     if espV3Active then
-                        for _, plr in ipairs(Players:GetPlayers()) do
-                            applyESP(plr)
+                        for _, plr in pairs(Players:GetPlayers()) do
+                            if plr ~= player and plr.Character then
+                                for _, part in ipairs(plr.Character:GetDescendants()) do
+                                    if part:IsA("BasePart") then
+                                        local box = Instance.new("BoxHandleAdornment")
+                                        box.Adornee = part
+                                        box.AlwaysOnTop = true
+                                        box.ZIndex = 10
+                                        box.Size = part.Size
+                                        box.Color3 = Color3.fromRGB(0, 170, 255)
+                                        box.Transparency = 0.8
+                                        box.AlwaysOnTop = true
+                                        box.Parent = part
+                                        box.AdornCullingMode = Enum.AdornCullingMode.Never
+                                        espV3Parts[part] = box
+                                    end
+                                end
+                            end
                         end
+                    else
+                        for _, box in pairs(espV3Parts) do
+                            if box then box:Destroy() end
+                        end
+                        espV3Parts = {}
                     end
                 end)
+
+            end
             setupMiscTab()
         end
     end)
@@ -557,4 +502,4 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 -- Standard-Tab beim Start
-tabs["Game Detect"]:MouseButton1Click()
+tabs["Game Detect"]:MouseButton1Click()     
