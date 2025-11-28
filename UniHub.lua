@@ -1,4 +1,4 @@
--- V1
+-- V1.1
 -- Services
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -327,106 +327,127 @@ local function makeTab(name)
                     end
                 end)
 
-                -- ESP Toggle
+                -- ESP V1: Body Parts in Teamfarbe
                 local espToggle = makeButtonWithDescription("ESP", "Toggle ESP on all players")
                 local espActive = false
-                local espParts = {}
-                espToggle.MouseButton1Click:Connect(function()
-                    espActive = not espActive
-                    setupToggleVisual(espToggle, espActive)
-
-                    if espActive then
-                        for _, plr in pairs(Players:GetPlayers()) do
-                            if plr ~= player and plr.Character then
-                                for _, part in pairs(plr.Character:GetDescendants()) do
-                                    if part:IsA("BasePart") then
-                                        local box = Instance.new("BoxHandleAdornment")
-                                        box.Adornee = part
-                                        box.AlwaysOnTop = true
-                                        box.ZIndex = 10
-                                        box.Size = part.Size
-                                        box.Color3 = Color3.fromRGB(255, 0, 0)
-                                        box.Transparency = 0
-                                        box.Parent = part
-                                        espParts[part] = box
-                                    end
+                local espBoxes = {}
+                
+                local function updateESP()
+                    for _, plr in pairs(Players:GetPlayers()) do
+                        if plr ~= player and plr.Character then
+                            for _, part in ipairs(plr.Character:GetDescendants()) do
+                                if part:IsA("BasePart") and not espBoxes[part] then
+                                    local box = Instance.new("BoxHandleAdornment")
+                                    box.Adornee = part
+                                    box.AlwaysOnTop = true
+                                    box.ZIndex = 10
+                                    box.Size = part.Size
+                                    box.Color3 = plr.TeamColor.Color
+                                    box.Transparency = 0
+                                    box.Parent = part
+                                    espBoxes[part] = box
                                 end
                             end
                         end
-                    else
-                        for _, box in pairs(espParts) do
-                            if box then box:Destroy() end
-                        end
-                        espParts = {}
                     end
+                end
+                
+                local function clearESP()
+                    for part, box in pairs(espBoxes) do if box then box:Destroy() end end
+                    espBoxes = {}
+                end
+                
+                espToggle.MouseButton1Click:Connect(function()
+                    espActive = not espActive
+                    setupToggleVisual(espToggle, espActive)
+                    if espActive then updateESP() else clearESP() end
                 end)
-
-                -- ESP v2 Toggle (Big Box)
+                
+                -- ESP V2: Hitbox HRP 50% transparent in Teamfarbe
                 local espV2Toggle = makeButtonWithDescription("ESP v2", "Hitbox around HRP")
                 local espV2Active = false
-                local espV2Parts = {}
-                espV2Toggle.MouseButton1Click:Connect(function()
-                    espV2Active = not espV2Active
-                    setupToggleVisual(espV2Toggle, espV2Active)
-
-                    if espV2Active then
-                        for _, plr in pairs(Players:GetPlayers()) do
-                            if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-                                local root = plr.Character.HumanoidRootPart
+                local espV2Boxes = {}
+                
+                local function updateESPv2()
+                    for _, plr in pairs(Players:GetPlayers()) do
+                        if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                            local root = plr.Character.HumanoidRootPart
+                            if not espV2Boxes[root] then
                                 local box = Instance.new("BoxHandleAdornment")
                                 box.Adornee = root
                                 box.AlwaysOnTop = true
                                 box.ZIndex = 10
-                                box.Size = root.Size * Vector3.new(3, 3, 3)
-                                box.Color3 = Color3.fromRGB(0, 255, 0)
+                                box.Size = root.Size * Vector3.new(3,3,3)
                                 box.Transparency = 0.5
+                                box.Color3 = plr.TeamColor.Color
                                 box.Parent = root
-                                espV2Parts[root] = box
+                                espV2Boxes[root] = box
                             end
                         end
-                    else
-                        for _, box in pairs(espV2Parts) do
-                            if box then box:Destroy() end
-                        end
-                        espV2Parts = {}
                     end
+                end
+                
+                local function clearESPv2()
+                    for _, box in pairs(espV2Boxes) do if box then box:Destroy() end end
+                    espV2Boxes = {}
+                end
+                
+                espV2Toggle.MouseButton1Click:Connect(function()
+                    espV2Active = not espV2Active
+                    setupToggleVisual(espV2Toggle, espV2Active)
+                    if espV2Active then updateESPv2() else clearESPv2() end
                 end)
-
-                -- ESP v3 Toggle (Outline only)
-                local espV3Toggle = makeButtonWithDescription("ESP v3", "Outline ESP")
+                
+                -- ESP V3: Name Tags über Kopf in Teamfarbe
+                local espV3Toggle = makeButtonWithDescription("ESP v3", "Name ESP above head")
                 local espV3Active = false
-                local espV3Parts = {}
+                local espV3Tags = {}
+                
+                local function updateESPv3()
+                    for _, plr in pairs(Players:GetPlayers()) do
+                        if plr ~= player and plr.Character and plr.Character:FindFirstChild("Head") then
+                            local head = plr.Character.Head
+                            if not espV3Tags[head] then
+                                local nameTag = Instance.new("BillboardGui")
+                                nameTag.Adornee = head
+                                nameTag.AlwaysOnTop = true
+                                nameTag.Size = UDim2.new(0,100,0,30)
+                                local textLabel = Instance.new("TextLabel")
+                                textLabel.Size = UDim2.new(1,0,1,0)
+                                textLabel.BackgroundTransparency = 1
+                                textLabel.TextColor3 = plr.TeamColor.Color
+                                textLabel.Text = plr.Name
+                                textLabel.Font = Enum.Font.GothamBold
+                                textLabel.TextSize = 14
+                                textLabel.Parent = nameTag
+                                nameTag.Parent = head
+                                espV3Tags[head] = nameTag
+                            end
+                        end
+                    end
+                end
+                
+                local function clearESPv3()
+                    for _, tag in pairs(espV3Tags) do if tag then tag:Destroy() end end
+                    espV3Tags = {}
+                end
+                
                 espV3Toggle.MouseButton1Click:Connect(function()
                     espV3Active = not espV3Active
                     setupToggleVisual(espV3Toggle, espV3Active)
-
-                    if espV3Active then
-                        for _, plr in pairs(Players:GetPlayers()) do
-                            if plr ~= player and plr.Character then
-                                for _, part in ipairs(plr.Character:GetDescendants()) do
-                                    if part:IsA("BasePart") then
-                                        local box = Instance.new("BoxHandleAdornment")
-                                        box.Adornee = part
-                                        box.AlwaysOnTop = true
-                                        box.ZIndex = 10
-                                        box.Size = part.Size
-                                        box.Color3 = Color3.fromRGB(0, 170, 255)
-                                        box.Transparency = 0.8
-                                        box.AlwaysOnTop = true
-                                        box.Parent = part
-                                        box.AdornCullingMode = Enum.AdornCullingMode.Never
-                                        espV3Parts[part] = box
-                                    end
-                                end
-                            end
-                        end
-                    else
-                        for _, box in pairs(espV3Parts) do
-                            if box then box:Destroy() end
-                        end
-                        espV3Parts = {}
-                    end
+                    if espV3Active then updateESPv3() else clearESPv3() end
                 end)
+                
+                -- Dynamisches Update für alle ESPs
+                Players.PlayerAdded:Connect(function() task.wait(0.2) if espActive then updateESP() end if espV2Active then updateESPv2() end if espV3Active then updateESPv3() end end)
+                Players.PlayerRemoving:Connect(function() task.wait(0.2) if espActive then updateESP() end if espV2Active then updateESPv2() end if espV3Active then updateESPv3() end end)
+                RunService.Heartbeat:Connect(function()
+                    if espActive then updateESP() end
+                    if espV2Active then updateESPv2() end
+                    if espV3Active then updateESPv3() end
+                end)
+
+                    
 
             end
             setupMiscTab()
