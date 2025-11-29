@@ -6,5 +6,6 @@ return {
     {name="WhiteGUI", url="https://raw.githubusercontent.com/zidiu5/TheStupidPSXCopy/refs/heads/main/IDK", gameId={108900455260873}, desc="Not optimized"},
     {name="LoS", url="https://pastebin.com/raw/bs8aRU3Y", gameId={3101667897}, desc="Legends of Speed, prob on german"},
     {name="BaS", url="https://raw.githubusercontent.com/zidiu5/Pls-work/refs/heads/main/build%20and%20survive.lua", gameId={0}, desc="Build and Survive (Fluent GUI)"},
+    {name="BABFT", url="https://raw.githubusercontent.com/zidiu5/Pls-work/refs/heads/main/BaBfT.lua", gameId={537413528}, desc="Build a Bowt (Fluent GUI)"},
     {name="Prospecting", url="https://raw.githubusercontent.com/zidiu5/Pls-work/refs/heads/main/Prospecting.lua", gameId={129827112113663}, desc="Prospecting (Fluent GUI)"}
 }
