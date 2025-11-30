@@ -1,4 +1,4 @@
--- V1.1 – Komplette GUI mit allen Fixes
+-- V1.2
 -- Services
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
