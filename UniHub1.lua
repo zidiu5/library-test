@@ -1,11 +1,11 @@
--- V1.1
+-- V1.1 – Komplette GUI mit allen Fixes
 -- Services
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
--- RICHTIGER NOCLIP KERN
+-- Noclip Kern
 local Clip = true
 local Noclipping = nil
 local floatName = "HumanoidRootPart"
@@ -13,7 +13,6 @@ local floatName = "HumanoidRootPart"
 local function startNoclip(speaker)
     Clip = false
     task.wait(0.1)
-
     local function NoclipLoop()
         if Clip == false and speaker.Character then
             for _, child in ipairs(speaker.Character:GetDescendants()) do
@@ -23,12 +22,10 @@ local function startNoclip(speaker)
             end
         end
     end
-
     if Noclipping then
         Noclipping:Disconnect()
         Noclipping = nil
     end
-
     Noclipping = RunService.Stepped:Connect(NoclipLoop)
 end
 
@@ -60,7 +57,6 @@ OpenBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 OpenBtn.Font = Enum.Font.GothamBold
 OpenBtn.Parent = gui
 OpenBtn.Active = true
-
 Instance.new("UICorner", OpenBtn).CornerRadius = UDim.new(0, 8)
 local stroke = Instance.new("UIStroke", OpenBtn)
 stroke.Color = Color3.fromHex("efbf04")
@@ -74,7 +70,6 @@ main.BackgroundColor3 = Color3.fromRGB(0,0,0)
 main.Visible = false
 main.Active = true
 main.Parent = gui
-
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
 local st = Instance.new("UIStroke", main)
 st.Thickness = 2
@@ -102,7 +97,6 @@ TabHolder.AutomaticCanvasSize = Enum.AutomaticSize.X
 TabHolder.ScrollingDirection = Enum.ScrollingDirection.X
 TabHolder.Parent = main
 TabHolder.ScrollBarImageTransparency = 1
-
 local tabLayout = Instance.new("UIListLayout", TabHolder)
 tabLayout.FillDirection = Enum.FillDirection.Horizontal
 tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
@@ -121,7 +115,6 @@ BtnHolder.AutomaticCanvasSize = Enum.AutomaticSize.Y
 BtnHolder.ScrollingDirection = Enum.ScrollingDirection.Y
 BtnHolder.Parent = main
 BtnHolder.ScrollBarImageTransparency = 1
-
 local layout = Instance.new("UIListLayout")
 layout.FillDirection = Enum.FillDirection.Vertical
 layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -251,7 +244,6 @@ local function makeTab(name)
             end)
 
         elseif name == "Misc" then
-            -- Setup Misc Tab (WalkSpeed, JumpPower, Gravity, Noclip, ESP, ESPv2)
             local function setupMiscTab()
                 -- WalkSpeed
                 local walkSpeedBox = Instance.new("TextBox")
@@ -327,11 +319,17 @@ local function makeTab(name)
                     end
                 end)
 
-                -- ESP V1: Body Parts in Teamfarbe
+                -- ESP Toggles (V1,V2,V3)
                 local espToggle = makeButtonWithDescription("ESP", "Toggle ESP on all players")
                 local espActive = false
                 local espBoxes = {}
-                
+                local espV2Toggle = makeButtonWithDescription("ESP v2", "Hitbox around HRP")
+                local espV2Active = false
+                local espV2Boxes = {}
+                local espV3Toggle = makeButtonWithDescription("ESP v3", "Name ESP above head")
+                local espV3Active = false
+                local espV3Tags = {}
+
                 local function updateESP()
                     for _, plr in pairs(Players:GetPlayers()) do
                         if plr ~= player and plr.Character then
@@ -351,23 +349,18 @@ local function makeTab(name)
                         end
                     end
                 end
-                
+
                 local function clearESP()
                     for part, box in pairs(espBoxes) do if box then box:Destroy() end end
                     espBoxes = {}
                 end
-                
+
                 espToggle.MouseButton1Click:Connect(function()
                     espActive = not espActive
                     setupToggleVisual(espToggle, espActive)
                     if espActive then updateESP() else clearESP() end
                 end)
-                
-                -- ESP V2: Hitbox HRP 50% transparent in Teamfarbe
-                local espV2Toggle = makeButtonWithDescription("ESP v2", "Hitbox around HRP")
-                local espV2Active = false
-                local espV2Boxes = {}
-                
+
                 local function updateESPv2()
                     for _, plr in pairs(Players:GetPlayers()) do
                         if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
@@ -386,23 +379,18 @@ local function makeTab(name)
                         end
                     end
                 end
-                
+
                 local function clearESPv2()
                     for _, box in pairs(espV2Boxes) do if box then box:Destroy() end end
                     espV2Boxes = {}
                 end
-                
+
                 espV2Toggle.MouseButton1Click:Connect(function()
                     espV2Active = not espV2Active
                     setupToggleVisual(espV2Toggle, espV2Active)
                     if espV2Active then updateESPv2() else clearESPv2() end
                 end)
-                
-                -- ESP V3: Name Tags über Kopf in Teamfarbe
-                local espV3Toggle = makeButtonWithDescription("ESP v3", "Name ESP above head")
-                local espV3Active = false
-                local espV3Tags = {}
-                
+
                 local function updateESPv3()
                     for _, plr in pairs(Players:GetPlayers()) do
                         if plr ~= player and plr.Character and plr.Character:FindFirstChild("Head") then
@@ -426,35 +414,31 @@ local function makeTab(name)
                         end
                     end
                 end
-                
+
                 local function clearESPv3()
                     for _, tag in pairs(espV3Tags) do if tag then tag:Destroy() end end
                     espV3Tags = {}
                 end
-                
+
                 espV3Toggle.MouseButton1Click:Connect(function()
                     espV3Active = not espV3Active
                     setupToggleVisual(espV3Toggle, espV3Active)
                     if espV3Active then updateESPv3() else clearESPv3() end
-                end)
-                
-                -- Dynamisches Update für alle ESPs
-                Players.PlayerAdded:Connect(function() task.wait(0.2) if espActive then updateESP() end if espV2Active then updateESPv2() end if espV3Active then updateESPv3() end end)
-                Players.PlayerRemoving:Connect(function() task.wait(0.2) if espActive then updateESP() end if espV2Active then updateESPv2() end if espV3Active then updateESPv3() end end)
-                RunService.Heartbeat:Connect(function()
-                    if espActive then updateESP() end
-                    if espV2Active then updateESPv2() end
-                    if espV3Active then updateESPv3() end
-                end)
-
-                    
-
-            end
-            setupMiscTab()
+                    end)
+                                -- Update loops
+            Players.PlayerAdded:Connect(function() task.wait(0.2) if espActive then updateESP() end if espV2Active then updateESPv2() end if espV3Active then updateESPv3() end end)
+            Players.PlayerRemoving:Connect(function() task.wait(0.2) if espActive then updateESP() end if espV2Active then updateESPv2() end if espV3Active then updateESPv3() end end)
+            RunService.Heartbeat:Connect(function()
+                if espActive then updateESP() end
+                if espV2Active then updateESPv2() end
+                if espV3Active then updateESPv3() end
+            end)
         end
-    end)
+        setupMiscTab()
+    end
+end)
 
-    tabs[name] = tab
+tabs[name] = tab
 end
 
 makeTab("Game Detect")
@@ -464,16 +448,16 @@ makeTab("Misc")
 -- MAIN GUI TOGGLE
 local isOpen = false
 local function toggle()
-    isOpen = not isOpen
-    if isOpen then
-        main.Visible = true
-        main.Position = UDim2.new(0.5,-180,1.2,0)
-        TweenService:Create(main,TweenInfo.new(0.35,Enum.EasingStyle.Quint),{Position = UDim2.new(0.5,-180,0.5,-135)}):Play()
-    else
-        TweenService:Create(main,TweenInfo.new(0.35,Enum.EasingStyle.Quint),{Position = UDim2.new(0.5,-180,1.2,0)}):Play()
-        task.wait(0.35)
-        main.Visible = false
-    end
+isOpen = not isOpen
+if isOpen then
+main.Visible = true
+main.Position = UDim2.new(0.5,-180,1.2,0)
+TweenService:Create(main,TweenInfo.new(0.35,Enum.EasingStyle.Quint),{Position = UDim2.new(0.5,-180,0.5,-135)}):Play()
+else
+TweenService:Create(main,TweenInfo.new(0.35,Enum.EasingStyle.Quint),{Position = UDim2.new(0.5,-180,1.2,0)}):Play()
+task.wait(0.35)
+main.Visible = false
+end
 end
 
 -- OPEN BUTTON DRAG
@@ -481,23 +465,23 @@ local dragging=false
 local dragStart
 local startPos
 OpenBtn.InputBegan:Connect(function(input)
-    if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
-        dragStart=input.Position
-        startPos=OpenBtn.Position
-        dragging=true
-    end
+if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+dragStart=input.Position
+startPos=OpenBtn.Position
+dragging=true
+end
 end)
 OpenBtn.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) then
-        local delta=input.Position - dragStart
-        OpenBtn.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
-    end
+if dragging and (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) then
+local delta=input.Position - dragStart
+OpenBtn.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
+end
 end)
 UserInputService.InputEnded:Connect(function(input)
-    if dragging and (input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch) then
-        dragging=false
-        if (input.Position - dragStart).Magnitude<8 then toggle() end
-    end
+if dragging and (input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch) then
+dragging=false
+if (input.Position - dragStart).Magnitude<8 then toggle() end
+end
 end)
 
 -- MAIN FRAME DRAG
@@ -505,23 +489,23 @@ local dragMain=false
 local mStart
 local mPos
 main.InputBegan:Connect(function(input)
-    if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
-        dragMain=true
-        mStart=input.Position
-        mPos=main.Position
-    end
+if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+dragMain=true
+mStart=input.Position
+mPos=main.Position
+end
 end)
 main.InputChanged:Connect(function(input)
-    if dragMain and (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) then
-        local delta=input.Position - mStart
-        main.Position=UDim2.new(mPos.X.Scale,mPos.X.Offset+delta.X,mPos.Y.Scale,mPos.Y.Offset+delta.Y)
-    end
+if dragMain and (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) then
+local delta=input.Position - mStart
+main.Position=UDim2.new(mPos.X.Scale,mPos.X.Offset+delta.X,mPos.Y.Scale,mPos.Y.Offset+delta.Y)
+end
 end)
 UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
-        dragMain=false
-    end
+if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+dragMain=false
+end
 end)
 
 -- Standard-Tab beim Start
-tabs["Game Detect"]:MouseButton1Click()     
+tabs["Game Detect"]:MouseButton1Click()
