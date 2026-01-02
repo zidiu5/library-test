@@ -1,5 +1,5 @@
 --// CYBERPUNK ULTIMATE UI LIBRARY
---// VERSION 2.3.1 "NEON OVERDRIVE ANIMATED + GLOW"
+--// VERSION 2.3.4 "NEON OVERDRIVE ANIMATED + GLOW"
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -860,19 +860,14 @@ function Library:CreateTab(name)
 	function Elements:FullRGBPicker(label, defaultColor, callback)
 		orderCounter += 1
 		local container = Instance.new("Frame", Page)
-		container.Size = UDim2.new(1,0,0,40) -- Starthöhe nur für Button
+		container.Size = UDim2.new(1, 0, 0, 40) -- nur Button-Höhe
 		container.BackgroundTransparency = 1
 		container.ClipsDescendants = true
 		container.LayoutOrder = orderCounter
 
-		-- UIListLayout für vertikales stacking innerhalb des Pickers (optional)
-		local layout = Instance.new("UIListLayout", container)
-		layout.SortOrder = Enum.SortOrder.LayoutOrder
-		layout.Padding = UDim.new(0,5)
-
-		-- BUTTON
+		-- Button
 		local title = Instance.new("TextButton", container)
-		title.Size = UDim2.new(1,0,0,40)
+		title.Size = UDim2.new(1, 0, 0, 40)
 		title.BackgroundColor3 = Theme.Button
 		title.Text = label.." ▼"
 		title.Font = Theme.Font
@@ -883,15 +878,16 @@ function Library:CreateTab(name)
 
 		-- Farbvorschau
 		local colorPreview = Instance.new("Frame", title)
-		colorPreview.Size = UDim2.new(0,25,0,25)
-		colorPreview.Position = UDim2.new(1,-30,0.5,-12.5)
+		colorPreview.Size = UDim2.new(0, 25, 0, 25)
+		colorPreview.Position = UDim2.new(1, -30, 0.5, -12.5)
 		colorPreview.BackgroundColor3 = defaultColor
 		colorPreview.BorderSizePixel = 0
 		Instance.new("UICorner", colorPreview)
 
-		-- PICKER CONTAINER (Teil des UIListLayouts!)
+		-- Picker Container
 		local pickerContainer = Instance.new("Frame", container)
-		pickerContainer.Size = UDim2.new(1,0,0,160)
+		pickerContainer.Size = UDim2.new(1, 0, 0, 160)
+		pickerContainer.Position = UDim2.new(0, 0, 0, 40)
 		pickerContainer.BackgroundColor3 = Theme.Button
 		pickerContainer.ClipsDescendants = true
 		Instance.new("UICorner", pickerContainer)
@@ -899,113 +895,115 @@ function Library:CreateTab(name)
 
 		-- Color Circle
 		local pickerCircle = Instance.new("ImageLabel", pickerContainer)
-		pickerCircle.Size = UDim2.new(0,145,0,145)
-		pickerCircle.Position = UDim2.new(0,3,0.03,0)
+		pickerCircle.Size = UDim2.new(0, 145, 0, 145)
+		pickerCircle.Position = UDim2.new(0, 3, 0.03, 0)
 		pickerCircle.BackgroundTransparency = 1
 		pickerCircle.Image = "rbxassetid://99441834088327"
 		pickerCircle.ScaleType = Enum.ScaleType.Fit
 
 		-- Slider
 		local sliderContainer = Instance.new("Frame", pickerContainer)
-		sliderContainer.Size = UDim2.new(0,30,0,145)
-		sliderContainer.Position = UDim2.new(0,180,0.03,0)
-		sliderContainer.BackgroundColor3 = Color3.fromRGB(50,50,50)
+		sliderContainer.Size = UDim2.new(0, 30, 0, 145)
+		sliderContainer.Position = UDim2.new(0, 180, 0.03, 0)
+		sliderContainer.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 		Instance.new("UICorner", sliderContainer)
 
 		local sliderFill = Instance.new("Frame", sliderContainer)
-		sliderFill.Size = UDim2.new(1,0,1,0)
-		sliderFill.BackgroundColor3 = Color3.new(1,1,1)
+		sliderFill.Size = UDim2.new(1, 0, 1, 0)
+		sliderFill.BackgroundColor3 = Color3.new(1, 1, 1)
 		Instance.new("UICorner", sliderFill)
 
 		-- Cursor
 		local cursor = Instance.new("Frame", pickerCircle)
-		cursor.Size = UDim2.new(0,10,0,10)
-		cursor.AnchorPoint = Vector2.new(0.5,0.5)
-		cursor.BackgroundColor3 = Color3.new(1,1,1)
+		cursor.Size = UDim2.new(0, 10, 0, 10)
+		cursor.AnchorPoint = Vector2.new(0.5, 0.5)
+		cursor.BackgroundColor3 = Color3.new(1, 1, 1)
 		cursor.BorderSizePixel = 0
 		Instance.new("UICorner", cursor)
-		cursor.Position = UDim2.new(0.5,0,0.5,0)
+		cursor.Position = UDim2.new(0.5, 0, 0.5, 0)
 
-		local opened, draggingCircle, draggingSlider = false,false,false
-		local hue, sat, val = 0,1,1
+		local opened = false
+		local draggingCircle, draggingSlider = false, false
+		local hue, sat, val = 0, 1, 1
 
-		local function HSVtoRGB(h,s,v)
-			local i = math.floor(h*6)
-			local f = h*6 - i
-			local p = v*(1-s)
-			local q = v*(1-f*s)
-			local t = v*(1-(1-f)*s)
+		local function HSVtoRGB(h, s, v)
+			local i = math.floor(h * 6)
+			local f = h * 6 - i
+			local p = v * (1 - s)
+			local q = v * (1 - f * s)
+			local t = v * (1 - (1 - f) * s)
 			i = i % 6
-			if i==0 then return Color3.new(v,t,p) end
-			if i==1 then return Color3.new(q,v,p) end
-			if i==2 then return Color3.new(p,v,t) end
-			if i==3 then return Color3.new(p,q,v) end
-			if i==4 then return Color3.new(t,p,v) end
-			if i==5 then return Color3.new(v,p,q) end
+			if i == 0 then return Color3.new(v, t, p) end
+			if i == 1 then return Color3.new(q, v, p) end
+			if i == 2 then return Color3.new(p, v, t) end
+			if i == 3 then return Color3.new(p, q, v) end
+			if i == 4 then return Color3.new(t, p, v) end
+			return Color3.new(v, p, q)
 		end
 
 		local function updateColor()
-			local color = HSVtoRGB(hue,sat,val)
+			local color = HSVtoRGB(hue, sat, val)
 			colorPreview.BackgroundColor3 = color
-			pcall(callback,color)
+			pcall(callback, color)
 		end
 
-		-- TOGGLE PICKER
+		-- Toggle Picker
 		title.MouseButton1Click:Connect(function()
 			opened = not opened
 			pickerContainer.Visible = opened
 			title.Text = label..(opened and " ▲" or " ▼")
-
-			-- dynamische Höhe des Containers anpassen
-			container.Size = UDim2.new(1,0,0,40 + (opened and 160 or 0))
+			container.Size = UDim2.new(1, 0, 0, 40 + (opened and 160 or 0))
 		end)
 
-		-- Circle Input
-		pickerCircle.InputBegan:Connect(function(input)
-			if input.UserInputType==Enum.UserInputType.MouseButton1 then draggingCircle=true end
-		end)
-		pickerCircle.InputEnded:Connect(function(input)
-			if input.UserInputType==Enum.UserInputType.MouseButton1 then draggingCircle=false end
-		end)
+		local UIS = game:GetService("UserInputService")
+		local currentInput = nil
 
-		-- Slider Input
-		sliderContainer.InputBegan:Connect(function(input)
-			if input.UserInputType==Enum.UserInputType.MouseButton1 then draggingSlider=true end
-		end)
-		sliderContainer.InputEnded:Connect(function(input)
-			if input.UserInputType==Enum.UserInputType.MouseButton1 then draggingSlider=false end
-		end)
+		local function startDrag(input, isCircle)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				currentInput = input
+				if isCircle then draggingCircle = true else draggingSlider = true end
+				input.Changed:Connect(function()
+					if input.UserInputState == Enum.UserInputState.End then
+						draggingCircle = false
+						draggingSlider = false
+						currentInput = nil
+					end
+				end)
+			end
+		end
 
-		-- Mouse move
-		UIS.InputChanged:Connect(function(input)
-			if not (draggingCircle or draggingSlider) then return end
-			if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then return end
-
-			local mx,my = input.Position.X, input.Position.Y
+		local function dragUpdate(input)
+			if not currentInput then return end
+			local mx, my = input.Position.X, input.Position.Y
 
 			if draggingCircle then
 				local localPos = Vector2.new(mx - pickerCircle.AbsolutePosition.X, my - pickerCircle.AbsolutePosition.Y)
 				local nx = (localPos.X / pickerCircle.AbsoluteSize.X - 0.5) * 2
 				local ny = (localPos.Y / pickerCircle.AbsoluteSize.Y - 0.5) * 2
-				local r = math.sqrt(nx*nx + ny*ny)
+				local r = math.sqrt(nx * nx + ny * ny)
 				if r <= 1 then
 					local angle = math.atan2(ny, nx)
-					if angle < 0 then angle += math.pi*2 end
-					hue = angle / (math.pi*2)
-					sat = math.clamp(r,0,1)
+					if angle < 0 then angle += math.pi * 2 end
+					hue = angle / (math.pi * 2)
+					sat = math.clamp(r, 0, 1)
 					cursor.Position = UDim2.fromScale(localPos.X / pickerCircle.AbsoluteSize.X, localPos.Y / pickerCircle.AbsoluteSize.Y)
 					updateColor()
 				end
 			end
 
 			if draggingSlider then
-				local y = math.clamp(my - sliderContainer.AbsolutePosition.Y,0,sliderContainer.AbsoluteSize.Y)
+				local y = math.clamp(my - sliderContainer.AbsolutePosition.Y, 0, sliderContainer.AbsoluteSize.Y)
 				val = 1 - y / sliderContainer.AbsoluteSize.Y
-				sliderFill.Size = UDim2.new(1,0,y/sliderContainer.AbsoluteSize.Y,0)
+				sliderFill.Size = UDim2.new(1, 0, y / sliderContainer.AbsoluteSize.Y, 0)
 				updateColor()
 			end
-		end)
+		end
+
+		pickerCircle.InputBegan:Connect(function(input) startDrag(input, true) end)
+		sliderContainer.InputBegan:Connect(function(input) startDrag(input, false) end)
+		UIS.InputChanged:Connect(dragUpdate)
 	end
+
 
 	function Elements:Slider(label, min, max, default, callback)
 		orderCounter += 1
@@ -1014,6 +1012,7 @@ function Library:CreateTab(name)
 		Container.Size = UDim2.new(1,0,0,60)
 		Container.BackgroundTransparency = 1
 
+		-- Label
 		local TextLabel = Instance.new("TextLabel", Container)
 		TextLabel.Size = UDim2.new(1, -50, 0, 20)
 		TextLabel.Position = UDim2.new(0,0,0,0)
@@ -1024,6 +1023,7 @@ function Library:CreateTab(name)
 		TextLabel.TextColor3 = Theme.Text
 		TextLabel.TextXAlignment = Enum.TextXAlignment.Left
 
+		-- Slider Frame
 		local SliderFrame = Instance.new("Frame", Container)
 		SliderFrame.Size = UDim2.new(1, -50, 0, 10)
 		SliderFrame.Position = UDim2.new(0,0,0,30)
@@ -1031,12 +1031,14 @@ function Library:CreateTab(name)
 		SliderFrame.BorderSizePixel = 0
 		Instance.new("UICorner", SliderFrame)
 
+		-- Slider Fill
 		local SliderFill = Instance.new("Frame", SliderFrame)
-		SliderFill.Size = UDim2.new((default-min)/(max-min),0,1,0)
+		SliderFill.Size = UDim2.new((default - min)/(max - min), 0, 1, 0)
 		SliderFill.BackgroundColor3 = Theme.Accent
 		SliderFill.BorderSizePixel = 0
 		Instance.new("UICorner", SliderFill)
 
+		-- Toggle Button
 		local ToggleBtn = Instance.new("TextButton", Container)
 		ToggleBtn.Size = UDim2.new(0,40,0,30)
 		ToggleBtn.Position = UDim2.new(1,-45,0,15)
@@ -1061,23 +1063,38 @@ function Library:CreateTab(name)
 			end
 		end)
 
+		-- Dragging Funktion
 		local dragging = false
+
+		local function updateSlider(inputPositionX)
+			local x = math.clamp(inputPositionX - SliderFrame.AbsolutePosition.X, 0, SliderFrame.AbsoluteSize.X)
+			SliderFill.Size = UDim2.new(x / SliderFrame.AbsoluteSize.X, 0, 1, 0)
+			local value = min + (x / SliderFrame.AbsoluteSize.X) * (max - min)
+			TextLabel.Text = label.." : "..math.floor(value)
+			pcall(callback, value)
+		end
+
+		-- InputBegan: Maus oder Touch
 		SliderFrame.InputBegan:Connect(function(input)
-			if input.UserInputType==Enum.UserInputType.MouseButton1 then dragging=true end
+			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				dragging = true
+				updateSlider(input.Position.X)
+				input.Changed:Connect(function()
+					if input.UserInputState == Enum.UserInputState.End then
+						dragging = false
+					end
+				end)
+			end
 		end)
-		SliderFrame.InputEnded:Connect(function(input)
-			if input.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end
-		end)
-		SliderFrame.InputChanged:Connect(function(input)
-			if dragging and enabled and (input.UserInputType==Enum.UserInputType.MouseMovement) then
-				local x = math.clamp(input.Position.X - SliderFrame.AbsolutePosition.X, 0, SliderFrame.AbsoluteSize.X)
-				SliderFill.Size = UDim2.new(x / SliderFrame.AbsoluteSize.X,0,1,0)
-				local value = min + (x/SliderFrame.AbsoluteSize.X)*(max-min)
-				TextLabel.Text = label.." : "..math.floor(value)
-				pcall(callback, value)
+
+		-- InputChanged: Mausbewegung oder Touch-Move
+		game:GetService("UserInputService").InputChanged:Connect(function(input)
+			if dragging and enabled and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+				updateSlider(input.Position.X)
 			end
 		end)
 	end
+
 
 	function Elements:Label(text)
 		orderCounter += 1
@@ -1102,26 +1119,38 @@ function Library:CreateTab(name)
 	--================ NOTIFICATION TOAST SYSTEM =================--
 
 	local RunService = game:GetService("RunService")
+	local TweenService = game:GetService("TweenService")
+	local Player = game.Players.LocalPlayer
 
 	local NotificationService = {}
 
-	local ToastGui = Instance.new("ScreenGui")
-	ToastGui.Name = "CyberpunkNotifications"
-	ToastGui.ResetOnSpawn = false
-	ToastGui.IgnoreGuiInset = true
-	ToastGui.Parent = Player:WaitForChild("PlayerGui")
+	-- EINZIGE ScreenGui pro Spieler
+	local ToastGui = Player:FindFirstChild("CyberpunkNotifications")
+	if not ToastGui then
+		ToastGui = Instance.new("ScreenGui")
+		ToastGui.Name = "CyberpunkNotifications"
+		ToastGui.ResetOnSpawn = false
+		ToastGui.IgnoreGuiInset = true
+		ToastGui.Parent = Player:WaitForChild("PlayerGui")
+	end
 
-	local ToastHolder = Instance.new("Frame", ToastGui)
-	ToastHolder.AnchorPoint = Vector2.new(1,1)
-	ToastHolder.Position = UDim2.new(1,-20,1,-20)
-	ToastHolder.Size = UDim2.new(0,340,1,0)
-	ToastHolder.BackgroundTransparency = 1
-	ToastHolder.ZIndex = 100
+	-- Holder für Toasts
+	local ToastHolder = ToastGui:FindFirstChild("ToastHolder")
+	if not ToastHolder then
+		ToastHolder = Instance.new("Frame")
+		ToastHolder.Name = "ToastHolder"
+		ToastHolder.AnchorPoint = Vector2.new(1,1)
+		ToastHolder.Position = UDim2.new(1,-20,1,-20)
+		ToastHolder.Size = UDim2.new(0,340,1,0)
+		ToastHolder.BackgroundTransparency = 1
+		ToastHolder.ZIndex = 100
+		ToastHolder.Parent = ToastGui
 
-	local ToastLayout = Instance.new("UIListLayout", ToastHolder)
-	ToastLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-	ToastLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
-	ToastLayout.Padding = UDim.new(0,10)
+		local ToastLayout = Instance.new("UIListLayout", ToastHolder)
+		ToastLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+		ToastLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+		ToastLayout.Padding = UDim.new(0,10)
+	end
 
 	local ToastColors = {
 		Info    = Theme.Accent,
@@ -1135,23 +1164,25 @@ function Library:CreateTab(name)
 		duration = duration or 3
 
 		-- ROOT TOAST
-		local toast = Instance.new("Frame", ToastHolder)
+		local toast = Instance.new("Frame")
 		toast.Size = UDim2.new(1,0,0,1)
 		toast.BackgroundColor3 = Theme.Button
 		toast.BackgroundTransparency = 0
 		toast.ZIndex = 101
 		toast.ClipsDescendants = true
+		toast.Parent = ToastHolder
 		Instance.new("UICorner", toast)
 
 		-- ACCENT STRIP
-		local accent = Instance.new("Frame", toast)
+		local accent = Instance.new("Frame")
 		accent.Size = UDim2.new(0,4,1,0)
 		accent.BackgroundColor3 = ToastColors[nType] or Theme.Accent
 		accent.BorderSizePixel = 0
 		accent.ZIndex = 102
+		accent.Parent = toast
 
 		-- TITLE
-		local titleLabel = Instance.new("TextLabel", toast)
+		local titleLabel = Instance.new("TextLabel")
 		titleLabel.BackgroundTransparency = 1
 		titleLabel.Position = UDim2.new(0,14,0,8)
 		titleLabel.Size = UDim2.new(1,-44,0,18)
@@ -1162,9 +1193,10 @@ function Library:CreateTab(name)
 		titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 		titleLabel.TextYAlignment = Enum.TextYAlignment.Center
 		titleLabel.ZIndex = 103
+		titleLabel.Parent = toast
 
 		-- MESSAGE
-		local msgLabel = Instance.new("TextLabel", toast)
+		local msgLabel = Instance.new("TextLabel")
 		msgLabel.BackgroundTransparency = 1
 		msgLabel.Position = UDim2.new(0,14,0,30)
 		msgLabel.Size = UDim2.new(1,-44,0,0)
@@ -1177,9 +1209,10 @@ function Library:CreateTab(name)
 		msgLabel.TextXAlignment = Enum.TextXAlignment.Left
 		msgLabel.TextYAlignment = Enum.TextYAlignment.Top
 		msgLabel.ZIndex = 103
+		msgLabel.Parent = toast
 
 		-- CLOSE BUTTON
-		local close = Instance.new("TextButton", toast)
+		local close = Instance.new("TextButton")
 		close.Size = UDim2.new(0,24,0,24)
 		close.Position = UDim2.new(1,-28,0,6)
 		close.BackgroundTransparency = 1
@@ -1189,6 +1222,7 @@ function Library:CreateTab(name)
 		close.TextColor3 = Theme.Text
 		close.AutoButtonColor = false
 		close.ZIndex = 104
+		close.Parent = toast
 
 		-- WAIT FOR LAYOUT
 		msgLabel:GetPropertyChangedSignal("AbsoluteSize"):Wait()
@@ -1203,18 +1237,20 @@ function Library:CreateTab(name)
 			{Size = UDim2.new(1,0,0,targetHeight)}
 		):Play()
 
+		-- Funktion zum Zerstören
 		local function destroyToast()
-			TweenService:Create(
-				toast,
-				TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-				{
-					Size = UDim2.new(1,0,0,0),
-					BackgroundTransparency = 1
-				}
-			):Play()
-			task.delay(0.3, function()
-				toast:Destroy()
-			end)
+			if toast and toast.Parent then
+				TweenService:Create(
+					toast,
+					TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+					{Size = UDim2.new(1,0,0,0), BackgroundTransparency = 1}
+				):Play()
+				task.delay(0.3, function()
+					if toast and toast.Parent then
+						toast:Destroy()
+					end
+				end)
+			end
 		end
 
 		close.MouseButton1Click:Connect(destroyToast)
@@ -1225,6 +1261,7 @@ function Library:CreateTab(name)
 	Library.Notify = function(title, message, nType, duration)
 		NotificationService:Notify(title, message, nType, duration)
 	end
+
 
 
 
