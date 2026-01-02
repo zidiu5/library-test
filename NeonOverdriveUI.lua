@@ -1,11 +1,13 @@
 --// CYBERPUNK ULTIMATE UI LIBRARY
---// VERSION 2.2 "NEON OVERDRIVE ANIMATED + GLOW"
+--// VERSION 2.3 "NEON OVERDRIVE ANIMATED + GLOW"
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Player = Players.LocalPlayer
 local Mouse = Player:GetMouse()
+local SavedWindowSize = nil
+
 
 --================ THEME =================--
 local Theme = {
@@ -131,6 +133,75 @@ Main.BackgroundColor3 = Theme.Main
 Main.Active = true
 Main.Visible = false
 Main.ClipsDescendants = true
+
+if SavedWindowSize then
+	Main.Size = SavedWindowSize
+end
+
+
+
+--================ RESIZE HANDLE =================--
+local ResizeHandle = Instance.new("Frame", Main)
+ResizeHandle.Size = UDim2.fromOffset(18,18)
+ResizeHandle.Position = UDim2.new(1,-18,1,-18)
+ResizeHandle.AnchorPoint = Vector2.new(0,0)
+ResizeHandle.BackgroundColor3 = Theme.Accent
+ResizeHandle.BackgroundTransparency = 0.2
+ResizeHandle.BorderSizePixel = 0
+ResizeHandle.ZIndex = 50
+ResizeHandle.Visible = false -- standardmäßig aus
+
+local ResizeCorner = Instance.new("UICorner", ResizeHandle)
+ResizeCorner.CornerRadius = UDim.new(0,6)
+
+local resizing = false
+local startMouse
+local startSize
+
+local MIN_SIZE = Vector2.new(350,300)
+local MAX_SIZE = Vector2.new(900,700)
+
+ResizeHandle.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		resizing = true
+		startMouse = input.Position
+		startSize = Main.AbsoluteSize
+	end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		resizing = false
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if not resizing then return end
+	if input.UserInputType ~= Enum.UserInputType.MouseMovement
+		and input.UserInputType ~= Enum.UserInputType.Touch then return end
+
+	local delta = input.Position - startMouse
+
+	local newX = math.clamp(
+		startSize.X + delta.X,
+		MIN_SIZE.X,
+		MAX_SIZE.X
+	)
+
+	local newY = math.clamp(
+		startSize.Y + delta.Y,
+		MIN_SIZE.Y,
+		MAX_SIZE.Y
+	)
+
+	Main.Size = UDim2.fromOffset(newX, newY)
+	SavedWindowSize = Main.Size
+end)
+
+
+
 
 --================ SETTINGS FUNCTIONS =================--
 
@@ -269,6 +340,7 @@ TabBar.Size = UDim2.new(0,150,1,-75)
 TabBar.BackgroundTransparency = 1
 TabBar.ScrollBarThickness = 4
 TabBar.ScrollBarImageColor3 = Theme.Accent
+local DEFAULT_SIZE = UDim2.fromScale(0.5, 0.8)
 
 local TabLayout = Instance.new("UIListLayout", TabBar)
 TabLayout.Padding = UDim.new(0,8)
@@ -289,24 +361,30 @@ Main.Size = UDim2.fromScale(0.5,0.8)
 
 local function OpenUI()
 	Main.Visible = true
-	Main.Size = UDim2.fromScale(0.45,0.55)
+	local targetSize = SavedWindowSize or DEFAULT_SIZE
+	Main.Size = targetSize - UDim2.fromOffset(40, 40)
 	Main.BackgroundTransparency = currentTransparency
-	Tween(Main,{0.35,Enum.EasingStyle.Back,Enum.EasingDirection.Out},{
-		Size = UDim2.fromScale(0.5,0.8),
+	Tween(Main, {0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out}, {
+		Size = targetSize,
 		BackgroundTransparency = currentTransparency
 	})
 end
 
 
+
 local function CloseUI()
-	Tween(Main,{0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.In},{
-		Size = UDim2.fromScale(0.45,0.55),
+	local targetSize = SavedWindowSize or DEFAULT_SIZE
+
+	Tween(Main, {0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In}, {
+		Size = targetSize - UDim2.fromOffset(40, 40),
 		BackgroundTransparency = 1
 	})
-	task.delay(0.25,function()
+
+	task.delay(0.25, function()
 		Main.Visible = false
 	end)
 end
+
 
 OpenButton.MouseButton1Click:Connect(function()
 	isOpen = not isOpen
@@ -322,6 +400,9 @@ local Library = {}
 local CurrentPage, CurrentTab
 
 function Library:CreateTab(name)
+	local Elements = {} -- nur einmal definieren
+	local orderCounter = 0
+
 	-- TAB BUTTON
 	local TabBtn = Instance.new("TextButton", TabBar)
 	TabBtn.Size = UDim2.new(0.95,0,0,45)
@@ -354,7 +435,9 @@ function Library:CreateTab(name)
 	Padding.PaddingTop = UDim.new(0,6)
 
 	local Layout = Instance.new("UIListLayout", Page)
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
 	Layout.Padding = UDim.new(0,10)
+
 	Layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 		Page.CanvasSize = UDim2.new(0,0,0,Layout.AbsoluteContentSize.Y + 20)
 	end)
@@ -384,11 +467,12 @@ function Library:CreateTab(name)
 		CurrentTab = TabBtn
 	end
 
-	local Elements = {}
-
-	-- BUTTON
+	--================ ELEMENT FUNCTIONS =================--
+	
 	function Elements:Button(text, callback)
+		orderCounter += 1
 		local b = Instance.new("TextButton", Page)
+		b.LayoutOrder = orderCounter
 		b.Size = UDim2.new(1,0,0,45)
 		b.Text = text
 		b.Font = Theme.Font
@@ -399,9 +483,10 @@ function Library:CreateTab(name)
 		b.MouseButton1Click:Connect(callback)
 	end
 
-	-- TOGGLE
 	function Elements:Toggle(text, callback)
+		orderCounter += 1
 		local t = Instance.new("TextButton", Page)
+		t.LayoutOrder = orderCounter
 		t.Size = UDim2.new(1,0,0,45)
 		t.Text = text
 		t.Font = Theme.Font
@@ -417,13 +502,12 @@ function Library:CreateTab(name)
 		Glow.Position = UDim2.fromScale(0.5,0.5)
 		Glow.Size = UDim2.fromOffset(50,50)
 		Glow.BackgroundColor3 = Theme.Accent
-		Glow.BackgroundTransparency = 0.85
+		Glow.BackgroundTransparency = 1
 		Glow.ZIndex = t.ZIndex - 1
-		local GlowCorner = Instance.new("UICorner", Glow)
-		GlowCorner.CornerRadius = UDim.new(0,8)
+		Instance.new("UICorner", Glow)
 		local GlowStroke = Instance.new("UIStroke", Glow)
 		GlowStroke.Thickness = 3
-		GlowStroke.Transparency = 0.65
+		GlowStroke.Transparency = 1
 
 		t.MouseButton1Click:Connect(function()
 			on = not on
@@ -440,9 +524,10 @@ function Library:CreateTab(name)
 		end)
 	end
 
-	-- TEXTBOX
 	function Elements:TextBox(placeholder, callback)
+		orderCounter += 1
 		local box = Instance.new("TextBox", Page)
+		box.LayoutOrder = orderCounter
 		box.Size = UDim2.new(1,0,0,45)
 		box.PlaceholderText = placeholder
 		box.Font = Theme.Font
@@ -458,16 +543,16 @@ function Library:CreateTab(name)
 		end)
 	end
 
-	--================ ELEMENTS: DROPDOWN =================--
-	function Elements:Dropdown(label, options, callback)
+	function Elements:Dropdown(label, options, callback, multiselect)
+		options = options or {}
+		multiselect = multiselect or false
+
+		orderCounter += 1
 		local container = Instance.new("Frame", Page)
-		container.Size = UDim2.new(1,0,0,40)
+		container.LayoutOrder = orderCounter
 		container.BackgroundTransparency = 1
 		container.ClipsDescendants = true
-
-		local layout = Instance.new("UIListLayout", container)
-		layout.SortOrder = Enum.SortOrder.LayoutOrder
-		layout.Padding = UDim.new(0,5) -- Abstand zwischen Title und Options
+		container.Size = UDim2.new(1,0,0,40)
 
 		local title = Instance.new("TextButton", container)
 		title.Size = UDim2.new(1,0,0,40)
@@ -480,58 +565,457 @@ function Library:CreateTab(name)
 		Instance.new("UICorner", title)
 
 		local optionContainer = Instance.new("Frame", container)
-		optionContainer.Size = UDim2.new(1,0,0,0) -- collapsed
 		optionContainer.BackgroundTransparency = 1
 		optionContainer.ClipsDescendants = true
+		optionContainer.Size = UDim2.new(1,0,0,0)
+		optionContainer.Position = UDim2.new(0,0,0,title.Size.Y.Offset + 5)
 
 		local optionLayout = Instance.new("UIListLayout", optionContainer)
 		optionLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		optionLayout.Padding = UDim.new(0,5) -- Abstand zwischen Options
+		optionLayout.Padding = UDim.new(0,5)
 
-		for _, opt in ipairs(options) do
-			local btnContainer = Instance.new("Frame", optionContainer)
-			btnContainer.Size = UDim2.new(1,0,0,30)
-			btnContainer.BackgroundTransparency = 1
+		local optionButtons = {}
+		local DropdownObject = {}
+		DropdownObject.opened = false
+		DropdownObject.multiselect = multiselect
+		DropdownObject.refreshOnUpdate = false
+		DropdownObject.selection = {}
 
-			local btn = Instance.new("TextButton", btnContainer)
-			btn.Size = UDim2.new(1,0,1,0)
-			btn.BackgroundColor3 = Theme.Button
-			btn.TextColor3 = Theme.Text
-			btn.Text = opt
-			btn.Font = Theme.Font
-			btn.TextSize = 14
-			btn.AutoButtonColor = false
-			Instance.new("UICorner", btn)
+		local function buildOptions()
+			for _, btn in ipairs(optionButtons) do btn:Destroy() end
+			table.clear(optionButtons)
 
-			btn.MouseButton1Click:Connect(function()
-				title.Text = label.." ▼ "..opt
-				callback(opt)
-				Tween(optionContainer, {0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Size = UDim2.new(1,0,0,0)})
-			end)
+			for i, opt in ipairs(options) do
+				local btnContainer = Instance.new("Frame", optionContainer)
+				btnContainer.Size = UDim2.new(1,0,0,30)
+				btnContainer.BackgroundTransparency = 1
+				btnContainer.LayoutOrder = i
+
+				local btn = Instance.new("TextButton", btnContainer)
+				btn.Size = UDim2.new(1,0,1,0)
+				btn.BackgroundColor3 = Theme.Button
+				btn.TextColor3 = Theme.Text
+				btn.Text = tostring(opt)
+				btn.Font = Theme.Font
+				btn.TextSize = 14
+				btn.AutoButtonColor = false
+				Instance.new("UICorner", btn)
+
+				local checkbox
+				if DropdownObject.multiselect then
+					checkbox = Instance.new("Frame", btn)
+					checkbox.Size = UDim2.new(0,20,0,20)
+					checkbox.Position = UDim2.new(0,5,0.5,-10)
+					checkbox.BackgroundColor3 = DropdownObject.selection[opt] and Theme.Accent or Color3.fromRGB(0,0,0)
+					checkbox.BorderSizePixel = 1
+					Instance.new("UICorner", checkbox)
+					DropdownObject.selection[opt] = DropdownObject.selection[opt] or false
+				end
+
+				btn.MouseButton1Click:Connect(function()
+					if DropdownObject.multiselect then
+						DropdownObject.selection[opt] = not DropdownObject.selection[opt]
+						if checkbox then
+							checkbox.BackgroundColor3 = DropdownObject.selection[opt] and Theme.Accent or Color3.fromRGB(0,0,0)
+						end
+						if callback then pcall(callback, DropdownObject.selection) end
+					else
+						title.Text = label.." ▼ "..tostring(opt)
+						if callback then pcall(callback, opt) end
+						DropdownObject.opened = false
+						Tween(optionContainer,{0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out},{Size = UDim2.new(1,0,0,0)})
+					end
+				end)
+
+				table.insert(optionButtons, btnContainer)
+			end
+
+			-- Multi-Select: Zeige alle bereits ausgewählten sofort
+			if DropdownObject.multiselect then
+				for opt,val in pairs(DropdownObject.selection) do
+					for _, btnContainer in ipairs(optionButtons) do
+						local btn = btnContainer:FindFirstChildWhichIsA("TextButton")
+						if btn and btn.Text == opt then
+							local cb = btn:FindFirstChildWhichIsA("Frame")
+							if cb then
+								cb.BackgroundColor3 = val and Theme.Accent or Color3.fromRGB(0,0,0)
+							end
+						end
+					end
+				end
+			end
 		end
 
-		local opened = false
+		buildOptions()
+
 		title.MouseButton1Click:Connect(function()
-			opened = not opened
-			local targetHeight = opened and (#options*35) or 0 -- 30 + 5 Abstand
-			Tween(optionContainer, {0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Size = UDim2.new(1,0,0,targetHeight)})
+			DropdownObject.opened = not DropdownObject.opened
+			local totalHeight = 0
+			for _, btn in ipairs(optionButtons) do
+				totalHeight = totalHeight + btn.Size.Y.Offset
+			end
+			local padding = (#optionButtons > 1) and (#optionButtons - 1) * 5 or 0
+			if DropdownObject.opened then totalHeight = totalHeight + padding else totalHeight = 0 end
+			Tween(optionContainer,{0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out},{Size = UDim2.new(1,0,0,totalHeight)})
+			title.Text = label..(DropdownObject.opened and " ▲" or " ▼")
 		end)
 
-		-- Container passt sich automatisch an die OptionContainer-Höhe an
 		optionContainer:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-			container.Size = UDim2.new(1,0,0,40 + optionContainer.AbsoluteSize.Y)
+			container.Size = UDim2.new(1,0,0, title.Size.Y.Offset + optionContainer.AbsoluteSize.Y + 5)
+		end)
+
+		function DropdownObject:SetOptions(newOptions)
+			options = newOptions or {}
+			-- Multi-Select: reset selection, Single-Select: nichts nötig
+			if DropdownObject.multiselect then
+				for k,_ in pairs(DropdownObject.selection) do DropdownObject.selection[k] = false end
+			end
+			if self.refreshOnUpdate then buildOptions() end
+			local totalHeight = 0
+			for _, btn in ipairs(optionButtons) do
+				totalHeight = totalHeight + btn.Size.Y.Offset
+			end
+			local padding = (#optionButtons > 1) and (#optionButtons - 1) * 5 or 0
+			optionContainer.Size = UDim2.new(1,0,0,self.opened and totalHeight + padding or 0)
+		end
+
+		function DropdownObject:GetOptions()
+			return options
+		end
+
+		function DropdownObject:Refresh()
+			buildOptions()
+			local totalHeight = 0
+			for _, btn in ipairs(optionButtons) do
+				totalHeight = totalHeight + btn.Size.Y.Offset
+			end
+			local padding = (#optionButtons > 1) and (#optionButtons - 1) * 5 or 0
+			optionContainer.Size = UDim2.new(1,0,0,self.opened and totalHeight + padding or 0)
+		end
+
+		return DropdownObject
+	end
+	
+	function Elements:DropdownSearch(label, options, callback, multiselect)
+		options = options or {}
+		multiselect = multiselect or false
+
+		orderCounter += 1
+		local container = Instance.new("Frame", Page)
+		container.LayoutOrder = orderCounter
+		container.BackgroundTransparency = 1
+		container.ClipsDescendants = true
+		container.Size = UDim2.new(1,0,0,40)
+
+		-- TITLE BUTTON
+		local title = Instance.new("TextButton", container)
+		title.Size = UDim2.new(1,0,0,40)
+		title.BackgroundColor3 = Theme.Button
+		title.Text = label.." ▼"
+		title.Font = Theme.Font
+		title.TextSize = 16
+		title.TextColor3 = Theme.Text
+		title.AutoButtonColor = false
+		Instance.new("UICorner", title)
+
+		-- DROPDOWN BODY
+		local body = Instance.new("Frame", container)
+		body.BackgroundTransparency = 1
+		body.ClipsDescendants = true
+		body.Size = UDim2.new(1,0,0,0)
+		body.Position = UDim2.new(0,0,0,45)
+
+		-- SEARCH BOX
+		local search = Instance.new("TextBox", body)
+		search.Size = UDim2.new(1,0,0,32)
+		search.PlaceholderText = "Search..."
+		search.Text = ""
+		search.Font = Theme.FontSecondary
+		search.TextSize = 14
+		search.BackgroundColor3 = Theme.Button
+		search.TextColor3 = Theme.Accent
+		search.PlaceholderColor3 = Theme.DarkText
+		search.ClearTextOnFocus = false
+		Instance.new("UICorner", search)
+
+		-- OPTIONS HOLDER
+		local optionHolder = Instance.new("Frame", body)
+		optionHolder.BackgroundTransparency = 1
+		optionHolder.Position = UDim2.new(0,0,0,38)
+		optionHolder.Size = UDim2.new(1,0,0,0)
+
+		local layout = Instance.new("UIListLayout", optionHolder)
+		layout.Padding = UDim.new(0,5)
+
+		local Dropdown = {
+			opened = false,
+			multiselect = multiselect,
+			options = options,
+			selection = {}
+		}
+
+		local optionButtons = {}
+
+		-- BUILD OPTIONS
+		local function build(filter)
+			for _,v in ipairs(optionButtons) do v:Destroy() end
+			table.clear(optionButtons)
+
+			filter = filter and filter:lower() or ""
+
+			for i,opt in ipairs(options) do
+				if filter ~= "" and not tostring(opt):lower():find(filter) then
+					continue
+				end
+
+				local row = Instance.new("Frame", optionHolder)
+				row.Size = UDim2.new(1,0,0,30)
+				row.BackgroundTransparency = 1
+
+				local btn = Instance.new("TextButton", row)
+				btn.Size = UDim2.new(1,0,1,0)
+				btn.BackgroundColor3 = Theme.Button
+				btn.TextColor3 = Theme.Text
+				btn.Text = tostring(opt)
+				btn.Font = Theme.Font
+				btn.TextSize = 14
+				btn.AutoButtonColor = false
+				Instance.new("UICorner", btn)
+
+				local checkbox
+				if multiselect then
+					Dropdown.selection[opt] = Dropdown.selection[opt] or false
+
+					checkbox = Instance.new("Frame", btn)
+					checkbox.Size = UDim2.new(0,18,0,18)
+					checkbox.Position = UDim2.new(0,6,0.5,-9)
+					checkbox.BackgroundColor3 = Dropdown.selection[opt] and Theme.Accent or Color3.fromRGB(0,0,0)
+					checkbox.BorderSizePixel = 1
+					Instance.new("UICorner", checkbox)
+				end
+
+				btn.MouseButton1Click:Connect(function()
+					if multiselect then
+						Dropdown.selection[opt] = not Dropdown.selection[opt]
+						checkbox.BackgroundColor3 = Dropdown.selection[opt] and Theme.Accent or Color3.fromRGB(0,0,0)
+						if callback then callback(Dropdown.selection) end
+					else
+						title.Text = label.." ▼ "..tostring(opt)
+						if callback then callback(opt) end
+						Dropdown.opened = false
+						Tween(body,{0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out},{Size = UDim2.new(1,0,0,0)})
+					end
+				end)
+
+				table.insert(optionButtons, row)
+			end
+		end
+
+		build()
+
+		-- SEARCH FILTER
+		search:GetPropertyChangedSignal("Text"):Connect(function()
+			build(search.Text)
+		end)
+
+		-- OPEN / CLOSE
+		title.MouseButton1Click:Connect(function()
+			Dropdown.opened = not Dropdown.opened
+			title.Text = label..(Dropdown.opened and " ▲" or " ▼")
+
+			if Dropdown.opened then
+				task.wait()
+				local h = 32 + layout.AbsoluteContentSize.Y + (#optionButtons > 0 and 5 or 0)
+				Tween(body,{0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out},{Size = UDim2.new(1,0,0,h)})
+			else
+				Tween(body,{0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out},{Size = UDim2.new(1,0,0,0)})
+			end
+		end)
+
+		-- AUTO HEIGHT
+		body:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+			container.Size = UDim2.new(1,0,0,40 + body.AbsoluteSize.Y)
+		end)
+
+		-- API
+		function Dropdown:SetOptions(new)
+			options = new or {}
+			self.options = options
+			build(search.Text)
+		end
+
+		function Dropdown:GetOptions()
+			return options
+		end
+
+		function Dropdown:Refresh()
+			build(search.Text)
+		end
+
+		return Dropdown
+	end
+
+
+	--================ ELEMENTS: FULL RGB PICKER =================--
+	function Elements:FullRGBPicker(label, defaultColor, callback)
+		orderCounter += 1
+		local container = Instance.new("Frame", Page)
+		container.Size = UDim2.new(1,0,0,40) -- Starthöhe nur für Button
+		container.BackgroundTransparency = 1
+		container.ClipsDescendants = true
+		container.LayoutOrder = orderCounter
+
+		-- UIListLayout für vertikales stacking innerhalb des Pickers (optional)
+		local layout = Instance.new("UIListLayout", container)
+		layout.SortOrder = Enum.SortOrder.LayoutOrder
+		layout.Padding = UDim.new(0,5)
+
+		-- BUTTON
+		local title = Instance.new("TextButton", container)
+		title.Size = UDim2.new(1,0,0,40)
+		title.BackgroundColor3 = Theme.Button
+		title.Text = label.." ▼"
+		title.Font = Theme.Font
+		title.TextSize = 16
+		title.TextColor3 = Theme.Text
+		title.AutoButtonColor = false
+		Instance.new("UICorner", title)
+
+		-- Farbvorschau
+		local colorPreview = Instance.new("Frame", title)
+		colorPreview.Size = UDim2.new(0,25,0,25)
+		colorPreview.Position = UDim2.new(1,-30,0.5,-12.5)
+		colorPreview.BackgroundColor3 = defaultColor
+		colorPreview.BorderSizePixel = 0
+		Instance.new("UICorner", colorPreview)
+
+		-- PICKER CONTAINER (Teil des UIListLayouts!)
+		local pickerContainer = Instance.new("Frame", container)
+		pickerContainer.Size = UDim2.new(1,0,0,160)
+		pickerContainer.BackgroundColor3 = Theme.Button
+		pickerContainer.ClipsDescendants = true
+		Instance.new("UICorner", pickerContainer)
+		pickerContainer.Visible = false
+
+		-- Color Circle
+		local pickerCircle = Instance.new("ImageLabel", pickerContainer)
+		pickerCircle.Size = UDim2.new(0,145,0,145)
+		pickerCircle.Position = UDim2.new(0,3,0.03,0)
+		pickerCircle.BackgroundTransparency = 1
+		pickerCircle.Image = "rbxassetid://99441834088327"
+		pickerCircle.ScaleType = Enum.ScaleType.Fit
+
+		-- Slider
+		local sliderContainer = Instance.new("Frame", pickerContainer)
+		sliderContainer.Size = UDim2.new(0,30,0,145)
+		sliderContainer.Position = UDim2.new(0,180,0.03,0)
+		sliderContainer.BackgroundColor3 = Color3.fromRGB(50,50,50)
+		Instance.new("UICorner", sliderContainer)
+
+		local sliderFill = Instance.new("Frame", sliderContainer)
+		sliderFill.Size = UDim2.new(1,0,1,0)
+		sliderFill.BackgroundColor3 = Color3.new(1,1,1)
+		Instance.new("UICorner", sliderFill)
+
+		-- Cursor
+		local cursor = Instance.new("Frame", pickerCircle)
+		cursor.Size = UDim2.new(0,10,0,10)
+		cursor.AnchorPoint = Vector2.new(0.5,0.5)
+		cursor.BackgroundColor3 = Color3.new(1,1,1)
+		cursor.BorderSizePixel = 0
+		Instance.new("UICorner", cursor)
+		cursor.Position = UDim2.new(0.5,0,0.5,0)
+
+		local opened, draggingCircle, draggingSlider = false,false,false
+		local hue, sat, val = 0,1,1
+
+		local function HSVtoRGB(h,s,v)
+			local i = math.floor(h*6)
+			local f = h*6 - i
+			local p = v*(1-s)
+			local q = v*(1-f*s)
+			local t = v*(1-(1-f)*s)
+			i = i % 6
+			if i==0 then return Color3.new(v,t,p) end
+			if i==1 then return Color3.new(q,v,p) end
+			if i==2 then return Color3.new(p,v,t) end
+			if i==3 then return Color3.new(p,q,v) end
+			if i==4 then return Color3.new(t,p,v) end
+			if i==5 then return Color3.new(v,p,q) end
+		end
+
+		local function updateColor()
+			local color = HSVtoRGB(hue,sat,val)
+			colorPreview.BackgroundColor3 = color
+			pcall(callback,color)
+		end
+
+		-- TOGGLE PICKER
+		title.MouseButton1Click:Connect(function()
+			opened = not opened
+			pickerContainer.Visible = opened
+			title.Text = label..(opened and " ▲" or " ▼")
+
+			-- dynamische Höhe des Containers anpassen
+			container.Size = UDim2.new(1,0,0,40 + (opened and 160 or 0))
+		end)
+
+		-- Circle Input
+		pickerCircle.InputBegan:Connect(function(input)
+			if input.UserInputType==Enum.UserInputType.MouseButton1 then draggingCircle=true end
+		end)
+		pickerCircle.InputEnded:Connect(function(input)
+			if input.UserInputType==Enum.UserInputType.MouseButton1 then draggingCircle=false end
+		end)
+
+		-- Slider Input
+		sliderContainer.InputBegan:Connect(function(input)
+			if input.UserInputType==Enum.UserInputType.MouseButton1 then draggingSlider=true end
+		end)
+		sliderContainer.InputEnded:Connect(function(input)
+			if input.UserInputType==Enum.UserInputType.MouseButton1 then draggingSlider=false end
+		end)
+
+		-- Mouse move
+		UIS.InputChanged:Connect(function(input)
+			if not (draggingCircle or draggingSlider) then return end
+			if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then return end
+
+			local mx,my = input.Position.X, input.Position.Y
+
+			if draggingCircle then
+				local localPos = Vector2.new(mx - pickerCircle.AbsolutePosition.X, my - pickerCircle.AbsolutePosition.Y)
+				local nx = (localPos.X / pickerCircle.AbsoluteSize.X - 0.5) * 2
+				local ny = (localPos.Y / pickerCircle.AbsoluteSize.Y - 0.5) * 2
+				local r = math.sqrt(nx*nx + ny*ny)
+				if r <= 1 then
+					local angle = math.atan2(ny, nx)
+					if angle < 0 then angle += math.pi*2 end
+					hue = angle / (math.pi*2)
+					sat = math.clamp(r,0,1)
+					cursor.Position = UDim2.fromScale(localPos.X / pickerCircle.AbsoluteSize.X, localPos.Y / pickerCircle.AbsoluteSize.Y)
+					updateColor()
+				end
+			end
+
+			if draggingSlider then
+				local y = math.clamp(my - sliderContainer.AbsolutePosition.Y,0,sliderContainer.AbsoluteSize.Y)
+				val = 1 - y / sliderContainer.AbsoluteSize.Y
+				sliderFill.Size = UDim2.new(1,0,y/sliderContainer.AbsoluteSize.Y,0)
+				updateColor()
+			end
 		end)
 	end
 
-	--================ ELEMENTS: SLIDER =================--
 	function Elements:Slider(label, min, max, default, callback)
+		orderCounter += 1
 		local Container = Instance.new("Frame", Page)
-		Container.Size = UDim2.new(1,0,0,60) -- mehr Höhe für Label
+		Container.LayoutOrder = orderCounter
+		Container.Size = UDim2.new(1,0,0,60)
 		Container.BackgroundTransparency = 1
 
-		-- Label über dem Slider
 		local TextLabel = Instance.new("TextLabel", Container)
-		TextLabel.Size = UDim2.new(1,0,0,20)
+		TextLabel.Size = UDim2.new(1, -50, 0, 20)
 		TextLabel.Position = UDim2.new(0,0,0,0)
 		TextLabel.BackgroundTransparency = 1
 		TextLabel.Text = label.." : "..tostring(default)
@@ -540,26 +1024,22 @@ function Library:CreateTab(name)
 		TextLabel.TextColor3 = Theme.Text
 		TextLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-		-- Slider Background
 		local SliderFrame = Instance.new("Frame", Container)
 		SliderFrame.Size = UDim2.new(1, -50, 0, 10)
 		SliderFrame.Position = UDim2.new(0,0,0,30)
 		SliderFrame.BackgroundColor3 = Color3.fromRGB(50,50,70)
 		SliderFrame.BorderSizePixel = 0
-		SliderFrame.AnchorPoint = Vector2.new(0,0)
 		Instance.new("UICorner", SliderFrame)
 
-		-- Slider Fill
 		local SliderFill = Instance.new("Frame", SliderFrame)
 		SliderFill.Size = UDim2.new((default-min)/(max-min),0,1,0)
 		SliderFill.BackgroundColor3 = Theme.Accent
 		SliderFill.BorderSizePixel = 0
 		Instance.new("UICorner", SliderFill)
 
-		-- ON/OFF Button rechts
 		local ToggleBtn = Instance.new("TextButton", Container)
 		ToggleBtn.Size = UDim2.new(0,40,0,30)
-		ToggleBtn.Position = UDim2.new(1,-45,0,25)
+		ToggleBtn.Position = UDim2.new(1,-45,0,15)
 		ToggleBtn.Text = "ON"
 		ToggleBtn.Font = Theme.Font
 		ToggleBtn.TextSize = 14
@@ -581,171 +1061,169 @@ function Library:CreateTab(name)
 			end
 		end)
 
-		-- Dragging
 		local dragging = false
 		SliderFrame.InputBegan:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 then
-				dragging = true
-			end
+			if input.UserInputType==Enum.UserInputType.MouseButton1 then dragging=true end
 		end)
 		SliderFrame.InputEnded:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 then
-				dragging = false
-			end
+			if input.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end
 		end)
 		SliderFrame.InputChanged:Connect(function(input)
-			if dragging and enabled and input.UserInputType == Enum.UserInputType.MouseMovement then
+			if dragging and enabled and (input.UserInputType==Enum.UserInputType.MouseMovement) then
 				local x = math.clamp(input.Position.X - SliderFrame.AbsolutePosition.X, 0, SliderFrame.AbsoluteSize.X)
-				SliderFill.Size = UDim2.new(x/SliderFrame.AbsoluteSize.X,0,1,0)
+				SliderFill.Size = UDim2.new(x / SliderFrame.AbsoluteSize.X,0,1,0)
 				local value = min + (x/SliderFrame.AbsoluteSize.X)*(max-min)
-				TextLabel.Text = label.." : "..math.floor(value) -- live Wert
-				pcall(function() callback(value) end) -- Fehler abfangen
+				TextLabel.Text = label.." : "..math.floor(value)
+				pcall(callback, value)
 			end
 		end)
 	end
 
-	--================ ELEMENTS: FULL RGB PICKER =================--
-	function Elements:FullRGBPicker(label, defaultColor, callback)
+	function Elements:Label(text)
+		orderCounter += 1
 		local container = Instance.new("Frame", Page)
-		container.Size = UDim2.new(1,0,0,40)
+		container.LayoutOrder = orderCounter
+		container.Size = UDim2.new(1,0,0,30)
 		container.BackgroundTransparency = 1
-		container.ClipsDescendants = false -- WICHTIG: sonst wird Picker abgeschnitten
 
-		local layout = Instance.new("UIListLayout", container)
-		layout.SortOrder = Enum.SortOrder.LayoutOrder
-		layout.Padding = UDim.new(0,5)
+		local lbl = Instance.new("TextLabel", container)
+		lbl.Size = UDim2.new(1,0,1,0)
+		lbl.BackgroundTransparency = 1
+		lbl.Text = text
+		lbl.Font = Theme.Font
+		lbl.TextSize = 16
+		lbl.TextColor3 = Theme.Text
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
 
-		local title = Instance.new("TextButton", container)
-		title.Size = UDim2.new(1,0,0,40)
-		title.BackgroundColor3 = Theme.Button
-		title.Text = label.." ▼"
-		title.Font = Theme.Font
-		title.TextSize = 16
-		title.TextColor3 = Theme.Text
-		title.AutoButtonColor = false
-		Instance.new("UICorner", title)
+		return lbl
+	end
 
-		-- PARENT PickerContainer direkt auf Page, NICHT auf container
-		local pickerContainer = Instance.new("Frame", Page)
-		pickerContainer.Size = UDim2.new(0,200,0,160)
-		pickerContainer.Position = UDim2.new(0,container.AbsolutePosition.X,0,container.AbsolutePosition.Y+40)
-		pickerContainer.BackgroundColor3 = Theme.Button
-		Instance.new("UICorner", pickerContainer)
-		pickerContainer.Visible = false
-		pickerContainer.ZIndex = 20
 
-		local pickerCircle = Instance.new("ImageLabel", pickerContainer)
-		pickerCircle.Size = UDim2.new(0,150,0,150)
-		pickerCircle.Position = UDim2.new(0,0,0,0)
-		pickerCircle.BackgroundTransparency = 1
-		pickerCircle.Image = "rbxassetid://99441834088327" -- kein Bild
-		pickerCircle.BackgroundColor3 = Color3.fromRGB(50,50,50) -- optional Hintergrund
-		pickerCircle.ScaleType = Enum.ScaleType.Fit
-		pickerCircle.ZIndex = 21
+	--================ NOTIFICATION TOAST SYSTEM =================--
 
-		local sliderContainer = Instance.new("Frame", pickerContainer)
-		sliderContainer.Size = UDim2.new(0,30,0,150)
-		sliderContainer.Position = UDim2.new(0,160,0,0)
-		sliderContainer.BackgroundColor3 = Color3.fromRGB(50,50,50)
-		Instance.new("UICorner", sliderContainer)
-		sliderContainer.ZIndex = 21
+	local RunService = game:GetService("RunService")
 
-		local sliderFill = Instance.new("Frame", sliderContainer)
-		sliderFill.Size = UDim2.new(1,0,1,0)
-		sliderFill.BackgroundColor3 = Color3.new(1,1,1)
-		Instance.new("UICorner", sliderFill)
+	local NotificationService = {}
 
-		local cursor = Instance.new("Frame", pickerCircle)
-		cursor.Size = UDim2.new(0,10,0,10)
-		cursor.AnchorPoint = Vector2.new(0.5,0.5)
-		cursor.BackgroundColor3 = Color3.new(1,1,1)
-		cursor.BorderSizePixel = 0
-		Instance.new("UICorner", cursor)
-		cursor.Position = UDim2.new(0.5,0,0.5,0)
-		cursor.ZIndex = 22
+	local ToastGui = Instance.new("ScreenGui")
+	ToastGui.Name = "CyberpunkNotifications"
+	ToastGui.ResetOnSpawn = false
+	ToastGui.IgnoreGuiInset = true
+	ToastGui.Parent = Player:WaitForChild("PlayerGui")
 
-		local opened, draggingCircle, draggingSlider = false,false,false
-		local hue, sat, val = 0,1,1
-		local mouse = Player:GetMouse()
+	local ToastHolder = Instance.new("Frame", ToastGui)
+	ToastHolder.AnchorPoint = Vector2.new(1,1)
+	ToastHolder.Position = UDim2.new(1,-20,1,-20)
+	ToastHolder.Size = UDim2.new(0,340,1,0)
+	ToastHolder.BackgroundTransparency = 1
+	ToastHolder.ZIndex = 100
 
-		local function HSVtoRGB(h,s,v)
-			local i = math.floor(h*6)
-			local f = h*6 - i
-			local p = v*(1-s)
-			local q = v*(1-f*s)
-			local t = v*(1-(1-f)*s)
-			i = i % 6
-			if i==0 then return Color3.new(v,t,p) end
-			if i==1 then return Color3.new(q,v,p) end
-			if i==2 then return Color3.new(p,v,t) end
-			if i==3 then return Color3.new(p,q,v) end
-			if i==4 then return Color3.new(t,p,v) end
-			if i==5 then return Color3.new(v,p,q) end
+	local ToastLayout = Instance.new("UIListLayout", ToastHolder)
+	ToastLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	ToastLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+	ToastLayout.Padding = UDim.new(0,10)
+
+	local ToastColors = {
+		Info    = Theme.Accent,
+		Success = Color3.fromRGB(0,200,120),
+		Warning = Color3.fromRGB(255,180,0),
+		Error   = Color3.fromRGB(255,80,80)
+	}
+
+	function NotificationService:Notify(title, message, nType, duration)
+		nType = nType or "Info"
+		duration = duration or 3
+
+		-- ROOT TOAST
+		local toast = Instance.new("Frame", ToastHolder)
+		toast.Size = UDim2.new(1,0,0,1)
+		toast.BackgroundColor3 = Theme.Button
+		toast.BackgroundTransparency = 0
+		toast.ZIndex = 101
+		toast.ClipsDescendants = true
+		Instance.new("UICorner", toast)
+
+		-- ACCENT STRIP
+		local accent = Instance.new("Frame", toast)
+		accent.Size = UDim2.new(0,4,1,0)
+		accent.BackgroundColor3 = ToastColors[nType] or Theme.Accent
+		accent.BorderSizePixel = 0
+		accent.ZIndex = 102
+
+		-- TITLE
+		local titleLabel = Instance.new("TextLabel", toast)
+		titleLabel.BackgroundTransparency = 1
+		titleLabel.Position = UDim2.new(0,14,0,8)
+		titleLabel.Size = UDim2.new(1,-44,0,18)
+		titleLabel.Text = tostring(title)
+		titleLabel.Font = Theme.Font
+		titleLabel.TextSize = 16
+		titleLabel.TextColor3 = Theme.Text
+		titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+		titleLabel.TextYAlignment = Enum.TextYAlignment.Center
+		titleLabel.ZIndex = 103
+
+		-- MESSAGE
+		local msgLabel = Instance.new("TextLabel", toast)
+		msgLabel.BackgroundTransparency = 1
+		msgLabel.Position = UDim2.new(0,14,0,30)
+		msgLabel.Size = UDim2.new(1,-44,0,0)
+		msgLabel.TextWrapped = true
+		msgLabel.AutomaticSize = Enum.AutomaticSize.Y
+		msgLabel.Text = tostring(message)
+		msgLabel.Font = Theme.Font
+		msgLabel.TextSize = 14
+		msgLabel.TextColor3 = Theme.Text
+		msgLabel.TextXAlignment = Enum.TextXAlignment.Left
+		msgLabel.TextYAlignment = Enum.TextYAlignment.Top
+		msgLabel.ZIndex = 103
+
+		-- CLOSE BUTTON
+		local close = Instance.new("TextButton", toast)
+		close.Size = UDim2.new(0,24,0,24)
+		close.Position = UDim2.new(1,-28,0,6)
+		close.BackgroundTransparency = 1
+		close.Text = "✕"
+		close.Font = Theme.Font
+		close.TextSize = 16
+		close.TextColor3 = Theme.Text
+		close.AutoButtonColor = false
+		close.ZIndex = 104
+
+		-- WAIT FOR LAYOUT
+		msgLabel:GetPropertyChangedSignal("AbsoluteSize"):Wait()
+		RunService.RenderStepped:Wait()
+
+		local targetHeight = msgLabel.AbsoluteSize.Y + 44
+
+		-- SHOW ANIMATION
+		TweenService:Create(
+			toast,
+			TweenInfo.new(0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+			{Size = UDim2.new(1,0,0,targetHeight)}
+		):Play()
+
+		local function destroyToast()
+			TweenService:Create(
+				toast,
+				TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+				{
+					Size = UDim2.new(1,0,0,0),
+					BackgroundTransparency = 1
+				}
+			):Play()
+			task.delay(0.3, function()
+				toast:Destroy()
+			end)
 		end
 
-		-- Farbvorschau rechts im Button
-		local colorPreview = Instance.new("Frame", title)
-		colorPreview.Size = UDim2.new(0,25,0,25)
-		colorPreview.Position = UDim2.new(1,-30,0.5,-12.5)
-		colorPreview.BackgroundColor3 = defaultColor
-		colorPreview.BorderSizePixel = 0
-		Instance.new("UICorner", colorPreview)
+		close.MouseButton1Click:Connect(destroyToast)
+		task.delay(duration, destroyToast)
+	end
 
-		-- updateColor passt jetzt nur die Vorschau an, nicht den ganzen Button
-		local function updateColor()
-			local color = HSVtoRGB(hue,sat,val)
-			colorPreview.BackgroundColor3 = color -- nur kleine Vorschau
-			pcall(callback,color)
-		end
-
-		title.MouseButton1Click:Connect(function()
-			opened = not opened
-			pickerContainer.Visible = opened
-			title.Text = label..(opened and " ▲" or " ▼")
-		end)
-
-		-- Circle Input
-		pickerCircle.InputBegan:Connect(function(input)
-			if input.UserInputType==Enum.UserInputType.MouseButton1 then draggingCircle=true end
-		end)
-		pickerCircle.InputEnded:Connect(function(input)
-			if input.UserInputType==Enum.UserInputType.MouseButton1 then draggingCircle=false end
-		end)
-
-		-- Slider Input
-		sliderContainer.InputBegan:Connect(function(input)
-			if input.UserInputType==Enum.UserInputType.MouseButton1 then draggingSlider=true end
-		end)
-		sliderContainer.InputEnded:Connect(function(input)
-			if input.UserInputType==Enum.UserInputType.MouseButton1 then draggingSlider=false end
-		end)
-
-		-- Mouse move
-		UIS.InputChanged:Connect(function(input)
-			if input.UserInputType==Enum.UserInputType.MouseMovement then
-				local mx,my = mouse.X,mouse.Y
-				if draggingCircle then
-					local localPos = Vector2.new(mx-pickerCircle.AbsolutePosition.X,my-pickerCircle.AbsolutePosition.Y)
-					local nx = (localPos.X/pickerCircle.AbsoluteSize.X-0.5)*2
-					local ny = (localPos.Y/pickerCircle.AbsoluteSize.Y-0.5)*2
-					local r = math.sqrt(nx^2+ny^2)
-					if r<=1 then
-						local angle = math.atan2(ny,nx)
-						if angle<0 then angle=angle+2*math.pi end
-						hue=angle/(2*math.pi)
-						sat=math.clamp(r,0,1)
-						cursor.Position=UDim2.new(localPos.X/pickerCircle.AbsoluteSize.X,0,localPos.Y/pickerCircle.AbsoluteSize.Y,0)
-						updateColor()
-					end
-				end
-				if draggingSlider then
-					local y = math.clamp(my-sliderContainer.AbsolutePosition.Y,0,sliderContainer.AbsoluteSize.Y)
-					val=1-y/sliderContainer.AbsoluteSize.Y
-					sliderFill.Size=UDim2.new(1,0,y/sliderContainer.AbsoluteSize.Y,0)
-					updateColor()
-				end
-			end
-		end)
+	-- PUBLIC API
+	Library.Notify = function(title, message, nType, duration)
+		NotificationService:Notify(title, message, nType, duration)
 	end
 
 
@@ -756,80 +1234,46 @@ function Library:CreateTab(name)
 end
 
 
+--================ OPTIONAL SETTINGS TAB DEFINIEREN =================--
+-- Funktion, die den Tab erstellt
+local function CreateOptionalSettingsTab()
+	local SettingsTab = Library:CreateTab("Settings")
 
+	-- Inhalte Tab nur einmal definieren
+	SettingsTab:Slider("GUI Transparency", 0, 1, currentTransparency, function(val)
+		currentTransparency = val
+		SetMainTransparency(val)
+	end)
 
---================ DEMO =================--
+	SettingsTab:Toggle("Enable Blur", function(on)
+		SetBlur(on, 20)
+	end)
 
--- Combat Tab
-local Combat = Library:CreateTab("Combat")
-Combat:Button("Attack", function() print("Attack Clicked") end)
-Combat:Toggle("Stealth Mode", function(state) print("Stealth:", state) end)
-Combat:TextBox("Enter command...", function(text) print("Command:", text) end)
-Combat:Dropdown("Mode", {"Option 1","Option 2","Option 3"}, function(opt) print("Selected:", opt) end)
-Combat:Slider("Damage", 0, 100, 50, function(val) print("Damage:", val) end)
+	SettingsTab:FullRGBPicker("Pick Color", Color3.fromRGB(255,0,0), function(color)
+		SetMainBackgroundColor(color)
+	end)
 
--- Utility Tab
-local Utility = Library:CreateTab("Utility")
-Utility:Button("Heal", function() print("Heal Clicked") end)
-Utility:Toggle("Auto Farm", function(state) print("Auto Farm:", state) end)
-Utility:TextBox("Enter path...", function(text) print("Path:", text) end)
-Utility:Dropdown("Speed Mode", {"Fast","Normal","Slow"}, function(opt) print("Speed:", opt) end)
-Utility:Slider("Speed", 0, 500, 250, function(val) print("Speed:", val) end)
+	local bgDropdown = SettingsTab:Dropdown("Background Color", {"Atlantic","Red","Purple","Cyan"}, function(opt)
+		SetMainBackgroundColor(BgColors[opt])
+	end)
+	bgDropdown.refreshOnUpdate = true
 
--- Settings Tab
-local Settings = Library:CreateTab("Settings")
-Settings:Button("Save", function() print("Save Clicked") end)
-Settings:Toggle("Dark Mode", function(state) print("Dark Mode:", state) end)
-Settings:TextBox("Username...", function(text) print("Username:", text) end)
-Settings:Dropdown("Graphics", {"Low","Medium","High"}, function(opt) print("Graphics:", opt) end)
-Settings:Slider("Volume", 0, 100, 75, function(val) print("Volume:", val) end)
+	SettingsTab:Toggle("Enable Resize", function(on)
+		ResizeHandle.Visible = on
+	end)
 
--- Visuals Tab
-local Visuals = Library:CreateTab("Visuals")
-Visuals:Button("Show Effects", function() print("Show Effects") end)
-Visuals:Toggle("Shaders", function(state) print("Shaders:", state) end)
-Visuals:TextBox("Effect name...", function(text) print("Effect:", text) end)
-Visuals:Dropdown("Color", {"Red","Green","Blue"}, function(opt) print("Color:", opt) end)
-Visuals:Slider("Brightness", 0, 100, 50, function(val) print("Brightness:", val) end)
+	return SettingsTab
+end
 
--- Audio Tab
-local Audio = Library:CreateTab("Audio")
-Audio:Button("Play Music", function() print("Play Music") end)
-Audio:Toggle("Mute", function(state) print("Mute:", state) end)
-Audio:TextBox("Track name...", function(text) print("Track:", text) end)
-Audio:Dropdown("Quality", {"Low","Normal","High"}, function(opt) print("Quality:", opt) end)
-Audio:Slider("Volume", 0, 100, 50, function(val) print("Volume:", val) end)
+-- Überwachung, ob der Tab automatisch erstellt werden soll
+-- Dies liest die Variable showOptionalSettings, sobald sie irgendwo gesetzt wird
+task.spawn(function()
+	-- Wartet bis showOptionalSettings definiert wird
+	while _G.showOptionalSettings == nil do
+		task.wait(0.05)
+	end
 
--- Misc Tab
-local Misc = Library:CreateTab("Misc")
-Misc:Button("Random Action", function() print("Random Action") end)
-Misc:Toggle("Enable Random", function(state) print("Random:", state) end)
-Misc:TextBox("Notes...", function(text) print("Notes:", text) end)
-Misc:Dropdown("Option", {"X","Y","Z"}, function(opt) print("Option:", opt) end)
-Misc:Slider("Random Value", -50, 50, 0, function(val) print("Random Value:", val) end)
-
---================ OPTIONAL SETTINGS TAB =================--
-local Settings = Library:CreateTab("Settings")
-
--- Transparenz Slider
-Settings:Slider("GUI Transparency", 0, 1, currentTransparency, function(val)
-	currentTransparency = val
-	SetMainTransparency(val)
-end)
-
--- Blur Toggle
-Settings:Toggle("Enable Blur", function(on)
-	SetBlur(on, 20)
-end)
-
-
-Settings:FullRGBPicker("Pick Color", Color3.fromRGB(255,0,0), function(color)
-	print("Selected color:", color)
-	SetMainBackgroundColor(color)
-end)
-
-
--- Background Color Dropdown
-Settings:Dropdown("Background Color", {"Atlantic","Red","Purple","Cyan"}, function(opt)
-	SetMainBackgroundColor(BgColors[opt])
+	if _G.showOptionalSettings then
+		CreateOptionalSettingsTab()
+	end
 end)
