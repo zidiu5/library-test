@@ -1,5 +1,5 @@
 --// CYBERPUNK ULTIMATE UI LIBRARY
---// VERSION 2.3 "NEON OVERDRIVE ANIMATED + GLOW"
+--// VERSION 2.3.1 "NEON OVERDRIVE ANIMATED + GLOW"
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -1277,3 +1277,5 @@ task.spawn(function()
 		CreateOptionalSettingsTab()
 	end
 end)
+
+return Library
