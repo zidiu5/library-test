@@ -1,5 +1,5 @@
---// CYBERPUNK ULTIMATE UI LIBRARY
---// VERSION 2.3.4 "NEON OVERDRIVE ANIMATED + GLOW"
+--// CYBERPUNK ULTIMATE UI LIBRARY BY ZIDUI5
+--// VERSION 2.4 
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -469,8 +469,11 @@ function Library:CreateTab(name)
 
 	--================ ELEMENT FUNCTIONS =================--
 	
+	-- BUTTON
 	function Elements:Button(text, callback)
 		orderCounter += 1
+
+		-- Button UI
 		local b = Instance.new("TextButton", Page)
 		b.LayoutOrder = orderCounter
 		b.Size = UDim2.new(1,0,0,45)
@@ -479,53 +482,235 @@ function Library:CreateTab(name)
 		b.TextSize = 16
 		b.BackgroundColor3 = Theme.Button
 		b.TextColor3 = Theme.Text
+		b.AutoButtonColor = false
 		Instance.new("UICorner", b)
-		b.MouseButton1Click:Connect(callback)
-	end
 
-	function Elements:Toggle(text, callback)
-		orderCounter += 1
-		local t = Instance.new("TextButton", Page)
-		t.LayoutOrder = orderCounter
-		t.Size = UDim2.new(1,0,0,45)
-		t.Text = text
-		t.Font = Theme.Font
-		t.TextSize = 16
-		t.BackgroundColor3 = Theme.Button
-		t.TextColor3 = Theme.Text
-		t.AutoButtonColor = false
-		Instance.new("UICorner", t)
-		local on = false
+		-- Button Objekt
+		local Button = {
+			_destroyed = false,
+			_events = {Clicked = {}},
+			_connections = {}
+		}
 
-		local Glow = Instance.new("Frame", t)
-		Glow.AnchorPoint = Vector2.new(0.5,0.5)
-		Glow.Position = UDim2.fromScale(0.5,0.5)
-		Glow.Size = UDim2.fromOffset(50,50)
-		Glow.BackgroundColor3 = Theme.Accent
-		Glow.BackgroundTransparency = 1
-		Glow.ZIndex = t.ZIndex - 1
-		Instance.new("UICorner", Glow)
-		local GlowStroke = Instance.new("UIStroke", Glow)
-		GlowStroke.Thickness = 3
-		GlowStroke.Transparency = 1
+		-- Color for Hover / Click
+		local baseColor = Theme.Button
+		local hoverColor = Color3.new(
+			math.clamp(baseColor.R + 0.06, 0, 1),
+			math.clamp(baseColor.G + 0.06, 0, 1),
+			math.clamp(baseColor.B + 0.06, 0, 1)
+		)
+		local clickColor = Color3.new(
+			math.clamp(baseColor.R - 0.06, 0, 1),
+			math.clamp(baseColor.G - 0.06, 0, 1),
+			math.clamp(baseColor.B - 0.06, 0, 1)
+		)
 
-		t.MouseButton1Click:Connect(function()
-			on = not on
-			if on then
-				Tween(t,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{BackgroundColor3 = Theme.Accent, TextColor3 = Color3.fromRGB(0,0,0)})
-				Tween(Glow,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{BackgroundColor3 = Theme.Accent})
-				Tween(GlowStroke,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{Color = Theme.Accent})
-			else
-				Tween(t,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{BackgroundColor3 = Theme.Button, TextColor3 = Theme.Text})
-				Tween(Glow,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{BackgroundColor3 = Color3.fromRGB(0,0,0)})
-				Tween(GlowStroke,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{Color = Color3.fromRGB(0,0,0)})
-			end
-			callback(on)
+		local hovering = false
+
+		-- Mouse Enter / Leave
+		local enterConn = b.MouseEnter:Connect(function()
+			if Button._destroyed then return end
+			hovering = true
+			b.BackgroundColor3 = hoverColor
 		end)
+		local leaveConn = b.MouseLeave:Connect(function()
+			if Button._destroyed then return end
+			hovering = false
+			b.BackgroundColor3 = baseColor
+		end)
+		table.insert(Button._connections, enterConn)
+		table.insert(Button._connections, leaveConn)
+
+		-- Click Connection mit Effekt und sicherem Callback
+		local clickConn = b.MouseButton1Click:Connect(function()
+			if Button._destroyed then return end
+
+			-- Sofort Click-Farbe setzen
+			b.BackgroundColor3 = clickColor
+
+			-- kurze Verzögerung, dann zurück auf Hover/Base
+			task.spawn(function()
+				task.wait(0.1)
+				if Button._destroyed then return end
+				b.BackgroundColor3 = hovering and hoverColor or baseColor
+			end)
+
+			-- Hauptcallback
+			if callback then pcall(callback) end
+			-- alle registrierten Events feuern
+			for _, fn in ipairs(Button._events.Clicked) do
+				pcall(fn)
+			end
+		end)
+		table.insert(Button._connections, clickConn)
+
+		-- Event API
+		function Button:OnClick(fn)
+			table.insert(self._events.Clicked, fn)
+			local disconnected = false
+			return {
+				Disconnect = function()
+					if disconnected then return end
+					disconnected = true
+					for i,v in ipairs(self._events.Clicked) do
+						if v == fn then
+							table.remove(self._events.Clicked, i)
+							break
+						end
+					end
+				end
+			}
+		end
+
+		-- Destroy / Cleanup
+		function Button:Destroy()
+			if self._destroyed then return end
+			self._destroyed = true
+			for _,c in ipairs(self._connections) do
+				c:Disconnect()
+			end
+			for _,list in pairs(self._events) do
+				table.clear(list)
+			end
+			b:Destroy()
+		end
+
+		return Button
 	end
 
+	-- TOGGLE
+	function Elements:Toggle(text, default, callback)
+		orderCounter += 1
+
+		-- UI
+		local button = Instance.new("TextButton", Page)
+		button.LayoutOrder = orderCounter
+		button.Size = UDim2.new(1,0,0,45)
+		button.Font = Theme.Font
+		button.TextSize = 16
+		button.AutoButtonColor = false
+		Instance.new("UICorner", button)
+
+		-- Toggle Object
+		local Toggle = {}
+		Toggle.state = default == true
+		Toggle._destroyed = false
+
+		Toggle._events = {
+			Changed = {},
+			Enabled = {},
+			Disabled = {}
+		}
+		Toggle._connections = {}
+
+		-- UI Update
+		local function refresh()
+			if Toggle.state then
+				button.Text = text .. " : ON"
+				button.BackgroundColor3 = Theme.Accent
+				button.TextColor3 = Color3.new(1,1,1)
+			else
+				button.Text = text .. " : OFF"
+				button.BackgroundColor3 = Theme.Button
+				button.TextColor3 = Theme.Text
+			end
+		end
+
+		-- Fire Events
+		local function fire(event)
+			for _,fn in ipairs(Toggle._events[event]) do
+				task.spawn(fn, Toggle.state)
+			end
+		end
+
+		-- Core Set
+		function Toggle:Set(value)
+			if Toggle._destroyed then return end
+			if Toggle.state == value then return end
+
+			Toggle.state = value
+			refresh()
+			fire("Changed")
+
+			if value then
+				fire("Enabled")
+			else
+				fire("Disabled")
+			end
+
+			-- Initial Callback für Library-Kompatibilität
+			if callback then
+				pcall(callback, Toggle.state)
+			end
+		end
+
+		function Toggle:Get()
+			return Toggle.state
+		end
+
+		-- Event API (mit Disconnect)
+		local function register(event, fn)
+			local list = Toggle._events[event]
+			table.insert(list, fn)
+
+			local disconnected = false
+			return {
+				Disconnect = function()
+					if disconnected then return end
+					disconnected = true
+					for i,v in ipairs(list) do
+						if v == fn then
+							table.remove(list, i)
+							break
+						end
+					end
+				end
+			}
+		end
+
+		function Toggle:OnChanged(fn) return register("Changed", fn) end
+		function Toggle:OnEnabled(fn) return register("Enabled", fn) end
+		function Toggle:OnDisabled(fn) return register("Disabled", fn) end
+
+		-- Button Connection
+		table.insert(Toggle._connections,
+			button.MouseButton1Click:Connect(function()
+				Toggle:Set(not Toggle.state)
+			end)
+		)
+
+		-- Destroy / Cleanup
+		function Toggle:Destroy()
+			if Toggle._destroyed then return end
+			Toggle._destroyed = true
+
+			for _,c in ipairs(Toggle._connections) do
+				c:Disconnect()
+			end
+
+			for _,list in pairs(Toggle._events) do
+				table.clear(list)
+			end
+
+			button:Destroy()
+		end
+
+		-- UI initialisieren
+		refresh()
+
+		-- 🔹 Callback direkt feuern, damit Default-Wert berücksichtigt wird
+		if callback then
+			pcall(callback, Toggle.state)
+		end
+
+		return Toggle
+	end
+
+	-- TEXT BOX
 	function Elements:TextBox(placeholder, callback)
 		orderCounter += 1
+
+		-- TextBox UI
 		local box = Instance.new("TextBox", Page)
 		box.LayoutOrder = orderCounter
 		box.Size = UDim2.new(1,0,0,45)
@@ -536,13 +721,82 @@ function Library:CreateTab(name)
 		box.TextColor3 = Theme.Accent
 		box.PlaceholderColor3 = Theme.DarkText
 		box.ClearTextOnFocus = false
-		Instance.new("UICorner", box)
 		box.Text = ""
-		box.FocusLost:Connect(function(enter)
-			if enter then callback(box.Text) end
+		Instance.new("UICorner", box)
+
+		-- TextBox Objekt
+		local TextBox = {
+			_destroyed = false,
+			_events = {Changed = {}},
+			_connections = {}
+		}
+
+		-- Haupt-Callback Connection (FocusLost)
+		local conn = box.FocusLost:Connect(function(enter)
+			if TextBox._destroyed then return end
+			if enter and callback then
+				pcall(callback, box.Text)
+			end
+			for _, fn in ipairs(TextBox._events.Changed) do
+				pcall(fn, box.Text)
+			end
 		end)
+		table.insert(TextBox._connections, conn)
+
+		-- Live-Update beim Tippen
+		local liveConn = box:GetPropertyChangedSignal("Text"):Connect(function()
+			if TextBox._destroyed then return end
+			for _, fn in ipairs(TextBox._events.Changed) do
+				pcall(fn, box.Text)
+			end
+		end)
+		table.insert(TextBox._connections, liveConn)
+
+		-- Event API
+		function TextBox:OnChanged(fn)
+			table.insert(self._events.Changed, fn)
+			local disconnected = false
+			return {
+				Disconnect = function()
+					if disconnected then return end
+					disconnected = true
+					for i,v in ipairs(self._events.Changed) do
+						if v == fn then
+							table.remove(self._events.Changed, i)
+							break
+						end
+					end
+				end
+			}
+		end
+
+		-- Get / Set API
+		function TextBox:Get()
+			return box.Text
+		end
+
+		function TextBox:Set(value)
+			if self._destroyed then return end
+			box.Text = tostring(value)
+		end
+
+		-- Destroy / Cleanup
+		function TextBox:Destroy()
+			if self._destroyed then return end
+			self._destroyed = true
+			for _, c in ipairs(self._connections) do
+				c:Disconnect()
+			end
+			for _, list in pairs(self._events) do
+				table.clear(list)
+			end
+			box:Destroy()
+		end
+
+		return TextBox
 	end
 
+	-- DROPDOWN
 	function Elements:Dropdown(label, options, callback, multiselect)
 		options = options or {}
 		multiselect = multiselect or false
@@ -575,12 +829,14 @@ function Library:CreateTab(name)
 		optionLayout.Padding = UDim.new(0,5)
 
 		local optionButtons = {}
-		local DropdownObject = {}
-		DropdownObject.opened = false
-		DropdownObject.multiselect = multiselect
-		DropdownObject.refreshOnUpdate = false
-		DropdownObject.selection = {}
+		local DropdownObject = {
+			opened = false,
+			multiselect = multiselect,
+			selection = {},
+			refreshOnUpdate = false
+		}
 
+		-- Build Options
 		local function buildOptions()
 			for _, btn in ipairs(optionButtons) do btn:Destroy() end
 			table.clear(optionButtons)
@@ -602,26 +858,31 @@ function Library:CreateTab(name)
 				Instance.new("UICorner", btn)
 
 				local checkbox
-				if DropdownObject.multiselect then
+				if multiselect then
+					DropdownObject.selection[opt] = DropdownObject.selection[opt] or false
 					checkbox = Instance.new("Frame", btn)
 					checkbox.Size = UDim2.new(0,20,0,20)
 					checkbox.Position = UDim2.new(0,5,0.5,-10)
 					checkbox.BackgroundColor3 = DropdownObject.selection[opt] and Theme.Accent or Color3.fromRGB(0,0,0)
 					checkbox.BorderSizePixel = 1
 					Instance.new("UICorner", checkbox)
-					DropdownObject.selection[opt] = DropdownObject.selection[opt] or false
 				end
 
 				btn.MouseButton1Click:Connect(function()
-					if DropdownObject.multiselect then
+					if multiselect then
+						-- Toggle Auswahl
 						DropdownObject.selection[opt] = not DropdownObject.selection[opt]
 						if checkbox then
 							checkbox.BackgroundColor3 = DropdownObject.selection[opt] and Theme.Accent or Color3.fromRGB(0,0,0)
 						end
-						if callback then pcall(callback, DropdownObject.selection) end
+						-- Callback liefert: OptionName, neuer Zustand, aktuelle Auswahl
+						if callback then pcall(callback, opt, DropdownObject.selection[opt], DropdownObject.selection) end
 					else
+						-- Single-Select
 						title.Text = label.." ▼ "..tostring(opt)
-						if callback then pcall(callback, opt) end
+						DropdownObject.selection = {}  -- vorherige Auswahl löschen
+						DropdownObject.selection[opt] = true
+						if callback then pcall(callback, opt, true, DropdownObject.selection) end
 						DropdownObject.opened = false
 						Tween(optionContainer,{0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out},{Size = UDim2.new(1,0,0,0)})
 					end
@@ -629,54 +890,46 @@ function Library:CreateTab(name)
 
 				table.insert(optionButtons, btnContainer)
 			end
-
-			-- Multi-Select: Zeige alle bereits ausgewählten sofort
-			if DropdownObject.multiselect then
-				for opt,val in pairs(DropdownObject.selection) do
-					for _, btnContainer in ipairs(optionButtons) do
-						local btn = btnContainer:FindFirstChildWhichIsA("TextButton")
-						if btn and btn.Text == opt then
-							local cb = btn:FindFirstChildWhichIsA("Frame")
-							if cb then
-								cb.BackgroundColor3 = val and Theme.Accent or Color3.fromRGB(0,0,0)
-							end
-						end
-					end
-				end
-			end
 		end
 
 		buildOptions()
-
+		
+		
+		-- Open/Close
 		title.MouseButton1Click:Connect(function()
 			DropdownObject.opened = not DropdownObject.opened
 			local totalHeight = 0
 			for _, btn in ipairs(optionButtons) do
-				totalHeight = totalHeight + btn.Size.Y.Offset
+				totalHeight += btn.Size.Y.Offset
 			end
+
 			local padding = (#optionButtons > 1) and (#optionButtons - 1) * 5 or 0
-			if DropdownObject.opened then totalHeight = totalHeight + padding else totalHeight = 0 end
+			if DropdownObject.opened then
+				-- Extra 5px am unteren Rand für sauberes Design
+				totalHeight += padding + 5
+			else
+				totalHeight = 0
+			end
+
 			Tween(optionContainer,{0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out},{Size = UDim2.new(1,0,0,totalHeight)})
 			title.Text = label..(DropdownObject.opened and " ▲" or " ▼")
 		end)
 
+
+
+		-- Auto container height (nur AbsoluteSize)
 		optionContainer:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-			container.Size = UDim2.new(1,0,0, title.Size.Y.Offset + optionContainer.AbsoluteSize.Y + 5)
+			container.Size = UDim2.new(1,0,0, title.Size.Y.Offset + optionContainer.AbsoluteSize.Y)
 		end)
 
+
+		-- API
 		function DropdownObject:SetOptions(newOptions)
 			options = newOptions or {}
-			-- Multi-Select: reset selection, Single-Select: nichts nötig
-			if DropdownObject.multiselect then
+			if multiselect then
 				for k,_ in pairs(DropdownObject.selection) do DropdownObject.selection[k] = false end
 			end
 			if self.refreshOnUpdate then buildOptions() end
-			local totalHeight = 0
-			for _, btn in ipairs(optionButtons) do
-				totalHeight = totalHeight + btn.Size.Y.Offset
-			end
-			local padding = (#optionButtons > 1) and (#optionButtons - 1) * 5 or 0
-			optionContainer.Size = UDim2.new(1,0,0,self.opened and totalHeight + padding or 0)
 		end
 
 		function DropdownObject:GetOptions()
@@ -685,22 +938,19 @@ function Library:CreateTab(name)
 
 		function DropdownObject:Refresh()
 			buildOptions()
-			local totalHeight = 0
-			for _, btn in ipairs(optionButtons) do
-				totalHeight = totalHeight + btn.Size.Y.Offset
-			end
-			local padding = (#optionButtons > 1) and (#optionButtons - 1) * 5 or 0
-			optionContainer.Size = UDim2.new(1,0,0,self.opened and totalHeight + padding or 0)
 		end
 
 		return DropdownObject
 	end
-	
+
+	-- DROPDOWN SEARCH
 	function Elements:DropdownSearch(label, options, callback, multiselect)
 		options = options or {}
 		multiselect = multiselect or false
 
+		local RunService = game:GetService("RunService")
 		orderCounter += 1
+
 		local container = Instance.new("Frame", Page)
 		container.LayoutOrder = orderCounter
 		container.BackgroundTransparency = 1
@@ -755,6 +1005,24 @@ function Library:CreateTab(name)
 		}
 
 		local optionButtons = {}
+		local animating = false -- Nur für Height Tween
+
+		-- FUNCTION: update heights (spam-sicher nur Animation)
+		local function updateBodyHeight()
+			-- Warte, bis Layoutsize korrekt ist
+			RunService.Heartbeat:Wait()
+			local waitTime = 0
+			repeat
+				waitTime += RunService.Heartbeat:Wait()
+			until layout.AbsoluteContentSize.Y > 0 or waitTime > 0.1 -- max 0.1 Sek warten
+
+			local contentHeight = layout.AbsoluteContentSize.Y
+			local totalHeight = 38 + contentHeight + 5
+
+			optionHolder.Size = UDim2.new(1,0,0,contentHeight)
+			Tween(body, {0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {Size = UDim2.new(1,0,0,totalHeight)})
+		end
+
 
 		-- BUILD OPTIONS
 		local function build(filter)
@@ -764,50 +1032,57 @@ function Library:CreateTab(name)
 			filter = filter and filter:lower() or ""
 
 			for i,opt in ipairs(options) do
-				if filter ~= "" and not tostring(opt):lower():find(filter) then
-					continue
-				end
+				if filter == "" or tostring(opt):lower():find(filter) then
+					local row = Instance.new("Frame", optionHolder)
+					row.Size = UDim2.new(1,0,0,30)
+					row.BackgroundTransparency = 1
 
-				local row = Instance.new("Frame", optionHolder)
-				row.Size = UDim2.new(1,0,0,30)
-				row.BackgroundTransparency = 1
+					local btn = Instance.new("TextButton", row)
+					btn.Size = UDim2.new(1,0,1,0)
+					btn.BackgroundColor3 = Theme.Button
+					btn.TextColor3 = Theme.Text
+					btn.Text = tostring(opt)
+					btn.Font = Theme.Font
+					btn.TextSize = 14
+					btn.AutoButtonColor = false
+					Instance.new("UICorner", btn)
 
-				local btn = Instance.new("TextButton", row)
-				btn.Size = UDim2.new(1,0,1,0)
-				btn.BackgroundColor3 = Theme.Button
-				btn.TextColor3 = Theme.Text
-				btn.Text = tostring(opt)
-				btn.Font = Theme.Font
-				btn.TextSize = 14
-				btn.AutoButtonColor = false
-				Instance.new("UICorner", btn)
-
-				local checkbox
-				if multiselect then
-					Dropdown.selection[opt] = Dropdown.selection[opt] or false
-
-					checkbox = Instance.new("Frame", btn)
-					checkbox.Size = UDim2.new(0,18,0,18)
-					checkbox.Position = UDim2.new(0,6,0.5,-9)
-					checkbox.BackgroundColor3 = Dropdown.selection[opt] and Theme.Accent or Color3.fromRGB(0,0,0)
-					checkbox.BorderSizePixel = 1
-					Instance.new("UICorner", checkbox)
-				end
-
-				btn.MouseButton1Click:Connect(function()
+					local checkbox
 					if multiselect then
-						Dropdown.selection[opt] = not Dropdown.selection[opt]
+						Dropdown.selection[opt] = Dropdown.selection[opt] or false
+						checkbox = Instance.new("Frame", btn)
+						checkbox.Size = UDim2.new(0,18,0,18)
+						checkbox.Position = UDim2.new(0,6,0.5,-9)
 						checkbox.BackgroundColor3 = Dropdown.selection[opt] and Theme.Accent or Color3.fromRGB(0,0,0)
-						if callback then callback(Dropdown.selection) end
-					else
-						title.Text = label.." ▼ "..tostring(opt)
-						if callback then callback(opt) end
-						Dropdown.opened = false
-						Tween(body,{0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out},{Size = UDim2.new(1,0,0,0)})
+						checkbox.BorderSizePixel = 1
+						Instance.new("UICorner", checkbox)
 					end
-				end)
 
-				table.insert(optionButtons, row)
+					btn.MouseButton1Click:Connect(function()
+						if multiselect then
+							Dropdown.selection[opt] = not Dropdown.selection[opt]
+							if checkbox then
+								checkbox.BackgroundColor3 = Dropdown.selection[opt] and Theme.Accent or Color3.fromRGB(0,0,0)
+							end
+							if callback then pcall(callback, opt, Dropdown.selection[opt], Dropdown.selection) end
+						else
+							title.Text = label.." ▼ "..tostring(opt)
+							if callback then pcall(callback, opt, true, { [opt]=true }) end
+							Dropdown.opened = false
+							Tween(body,{0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out},{Size=UDim2.new(1,0,0,0)})
+						end
+					end)
+
+					table.insert(optionButtons, row)
+				end
+			end
+
+			-- Update nur wenn Dropdown geöffnet
+			if Dropdown.opened then
+				updateBodyHeight()
+			else
+				body.Size = UDim2.new(1,0,0,0)
+				optionHolder.Size = UDim2.new(1,0,0,0)
 			end
 		end
 
@@ -822,14 +1097,7 @@ function Library:CreateTab(name)
 		title.MouseButton1Click:Connect(function()
 			Dropdown.opened = not Dropdown.opened
 			title.Text = label..(Dropdown.opened and " ▲" or " ▼")
-
-			if Dropdown.opened then
-				task.wait()
-				local h = 32 + layout.AbsoluteContentSize.Y + (#optionButtons > 0 and 5 or 0)
-				Tween(body,{0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out},{Size = UDim2.new(1,0,0,h)})
-			else
-				Tween(body,{0.25,Enum.EasingStyle.Quad,Enum.EasingDirection.Out},{Size = UDim2.new(1,0,0,0)})
-			end
+			build(search.Text)
 		end)
 
 		-- AUTO HEIGHT
@@ -854,9 +1122,8 @@ function Library:CreateTab(name)
 
 		return Dropdown
 	end
-
-
-	--================ ELEMENTS: FULL RGB PICKER =================--
+	
+	-- FULL RGB PICKER
 	function Elements:FullRGBPicker(label, defaultColor, callback)
 		orderCounter += 1
 		local container = Instance.new("Frame", Page)
@@ -1004,9 +1271,12 @@ function Library:CreateTab(name)
 		UIS.InputChanged:Connect(dragUpdate)
 	end
 
-
-	function Elements:Slider(label, min, max, default, callback)
+	-- SLIDER
+	function Elements:Slider(label, min, max, default, callback, precision)
+		precision = precision or 0
 		orderCounter += 1
+
+		-- Container
 		local Container = Instance.new("Frame", Page)
 		Container.LayoutOrder = orderCounter
 		Container.Size = UDim2.new(1,0,0,60)
@@ -1017,7 +1287,6 @@ function Library:CreateTab(name)
 		TextLabel.Size = UDim2.new(1, -50, 0, 20)
 		TextLabel.Position = UDim2.new(0,0,0,0)
 		TextLabel.BackgroundTransparency = 1
-		TextLabel.Text = label.." : "..tostring(default)
 		TextLabel.Font = Theme.Font
 		TextLabel.TextSize = 16
 		TextLabel.TextColor3 = Theme.Text
@@ -1049,10 +1318,65 @@ function Library:CreateTab(name)
 		ToggleBtn.TextColor3 = Theme.Text
 		Instance.new("UICorner", ToggleBtn)
 
-		local enabled = true
+		local Slider = {
+			_value = default,
+			_enabled = true,
+			_destroyed = false,
+			_connections = {}
+		}
+
+		-- Präzisions-Funktion
+		local function round(val)
+			local mult = 10 ^ precision
+			return math.floor(val * mult + 0.5) / mult
+		end
+
+		-- UI Update
+		local function refreshUI()
+			local displayVal = round(Slider._value)
+			TextLabel.Text = label.." : "..tostring(displayVal)
+			SliderFill.Size = UDim2.new((Slider._value - min)/(max - min), 0, 1, 0)
+		end
+
+		-- Dragging
+		local dragging = false
+		local function updateSlider(inputX)
+			if not Slider._enabled then return end -- Slider kann nur gezogen werden, wenn aktiv
+			local x = math.clamp(inputX - SliderFrame.AbsolutePosition.X, 0, SliderFrame.AbsoluteSize.X)
+			local val = min + (x / SliderFrame.AbsoluteSize.X) * (max - min)
+			Slider._value = val
+			refreshUI()
+			if callback then
+				pcall(callback, Slider._value)
+			end
+		end
+
+		-- Input Connections
+		table.insert(Slider._connections, SliderFrame.InputBegan:Connect(function(input)
+			if not Slider._enabled then return end
+			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				dragging = true
+				updateSlider(input.Position.X)
+				local conn
+				conn = input.Changed:Connect(function()
+					if input.UserInputState == Enum.UserInputState.End then
+						dragging = false
+						conn:Disconnect()
+					end
+				end)
+			end
+		end))
+
+		table.insert(Slider._connections, game:GetService("UserInputService").InputChanged:Connect(function(input)
+			if dragging and Slider._enabled and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+				updateSlider(input.Position.X)
+			end
+		end))
+
+		-- Toggle Button
 		ToggleBtn.MouseButton1Click:Connect(function()
-			enabled = not enabled
-			if enabled then
+			Slider._enabled = not Slider._enabled
+			if Slider._enabled then
 				ToggleBtn.Text = "ON"
 				ToggleBtn.BackgroundColor3 = Theme.Button
 				ToggleBtn.TextColor3 = Theme.Text
@@ -1061,41 +1385,66 @@ function Library:CreateTab(name)
 				ToggleBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
 				ToggleBtn.TextColor3 = Color3.fromRGB(120,120,120)
 			end
+
+			-- 🔹 Callback immer mit aktuellem Wert, nie nil
+			if callback then
+				pcall(callback, Slider._value)
+			end
 		end)
 
-		-- Dragging Funktion
-		local dragging = false
-
-		local function updateSlider(inputPositionX)
-			local x = math.clamp(inputPositionX - SliderFrame.AbsolutePosition.X, 0, SliderFrame.AbsoluteSize.X)
-			SliderFill.Size = UDim2.new(x / SliderFrame.AbsoluteSize.X, 0, 1, 0)
-			local value = min + (x / SliderFrame.AbsoluteSize.X) * (max - min)
-			TextLabel.Text = label.." : "..math.floor(value)
-			pcall(callback, value)
+		-- API
+		function Slider:Set(value)
+			if Slider._destroyed then return end
+			Slider._value = math.clamp(value, min, max)
+			refreshUI()
+			if callback then
+				pcall(callback, Slider._value)
+			end
 		end
 
-		-- InputBegan: Maus oder Touch
-		SliderFrame.InputBegan:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-				dragging = true
-				updateSlider(input.Position.X)
-				input.Changed:Connect(function()
-					if input.UserInputState == Enum.UserInputState.End then
-						dragging = false
-					end
-				end)
-			end
-		end)
+		function Slider:Get()
+			return Slider._value
+		end
 
-		-- InputChanged: Mausbewegung oder Touch-Move
-		game:GetService("UserInputService").InputChanged:Connect(function(input)
-			if dragging and enabled and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-				updateSlider(input.Position.X)
+		function Slider:Enable()
+			if Slider._destroyed then return end
+			Slider._enabled = true
+			ToggleBtn.Text = "ON"
+			ToggleBtn.BackgroundColor3 = Theme.Button
+			ToggleBtn.TextColor3 = Theme.Text
+			if callback then pcall(callback, Slider._value) end
+		end
+
+		function Slider:Disable()
+			if Slider._destroyed then return end
+			Slider._enabled = false
+			ToggleBtn.Text = "OFF"
+			ToggleBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+			ToggleBtn.TextColor3 = Color3.fromRGB(120,120,120)
+			if callback then pcall(callback, Slider._value) end
+		end
+
+		function Slider:Destroy()
+			if Slider._destroyed then return end
+			Slider._destroyed = true
+			for _,c in ipairs(Slider._connections) do
+				c:Disconnect()
 			end
-		end)
+			Container:Destroy()
+			ToggleBtn:Destroy()
+		end
+
+		refreshUI()
+
+		-- 🔹 Default Callback direkt feuern
+		if callback then
+			pcall(callback, default)
+		end
+
+		return Slider
 	end
 
-
+	-- LABEL
 	function Elements:Label(text)
 		orderCounter += 1
 		local container = Instance.new("Frame", Page)
@@ -1120,39 +1469,40 @@ function Library:CreateTab(name)
 
 	local RunService = game:GetService("RunService")
 	local TweenService = game:GetService("TweenService")
+	local TextService = game:GetService("TextService")
 	local Player = game.Players.LocalPlayer
 
 	local NotificationService = {}
 
-	-- EINZIGE ScreenGui pro Spieler
-	local ToastGui = Player:FindFirstChild("CyberpunkNotifications")
-	if not ToastGui then
-		ToastGui = Instance.new("ScreenGui")
-		ToastGui.Name = "CyberpunkNotifications"
-		ToastGui.ResetOnSpawn = false
-		ToastGui.IgnoreGuiInset = true
-		ToastGui.Parent = Player:WaitForChild("PlayerGui")
+	local ToastGui = Player:FindFirstChild("CyberpunkNotifications") or Instance.new("ScreenGui")
+	ToastGui.Name = "CyberpunkNotifications"
+	ToastGui.ResetOnSpawn = false
+	ToastGui.IgnoreGuiInset = true
+	ToastGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+	ToastGui.Parent = Player:WaitForChild("PlayerGui")
+
+	local ToastHolder = ToastGui:FindFirstChild("ToastHolder") or Instance.new("Frame")
+	ToastHolder.Name = "ToastHolder"
+	ToastHolder.AnchorPoint = Vector2.new(1,1)
+	ToastHolder.Position = UDim2.new(1,-20,1,-20)
+	ToastHolder.Size = UDim2.new(0,340,1,0)
+	ToastHolder.BackgroundTransparency = 1
+	ToastHolder.Parent = ToastGui
+
+	local layout = ToastHolder:FindFirstChildOfClass("UIListLayout") or Instance.new("UIListLayout", ToastHolder)
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+	layout.Padding = UDim.new(0,10)
+
+	local function tweenGui(obj, props, time, style, dir)
+		style = style or Enum.EasingStyle.Quad
+		dir = dir or Enum.EasingDirection.Out
+		local tween = TweenService:Create(obj, TweenInfo.new(time, style, dir), props)
+		tween:Play()
+		return tween
 	end
 
-	-- Holder für Toasts
-	local ToastHolder = ToastGui:FindFirstChild("ToastHolder")
-	if not ToastHolder then
-		ToastHolder = Instance.new("Frame")
-		ToastHolder.Name = "ToastHolder"
-		ToastHolder.AnchorPoint = Vector2.new(1,1)
-		ToastHolder.Position = UDim2.new(1,-20,1,-20)
-		ToastHolder.Size = UDim2.new(0,340,1,0)
-		ToastHolder.BackgroundTransparency = 1
-		ToastHolder.ZIndex = 100
-		ToastHolder.Parent = ToastGui
-
-		local ToastLayout = Instance.new("UIListLayout", ToastHolder)
-		ToastLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-		ToastLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
-		ToastLayout.Padding = UDim.new(0,10)
-	end
-
-	local ToastColors = {
+	local ToastColors = Theme.Toast or {
 		Info    = Theme.Accent,
 		Success = Color3.fromRGB(0,200,120),
 		Warning = Color3.fromRGB(255,180,0),
@@ -1163,56 +1513,48 @@ function Library:CreateTab(name)
 		nType = nType or "Info"
 		duration = duration or 3
 
-		-- ROOT TOAST
 		local toast = Instance.new("Frame")
 		toast.Size = UDim2.new(1,0,0,1)
 		toast.BackgroundColor3 = Theme.Button
-		toast.BackgroundTransparency = 0
-		toast.ZIndex = 101
+		toast.BorderSizePixel = 0
 		toast.ClipsDescendants = true
+		toast.ZIndex = 100
 		toast.Parent = ToastHolder
 		Instance.new("UICorner", toast)
 
-		-- ACCENT STRIP
-		local accent = Instance.new("Frame")
+		local accent = Instance.new("Frame", toast)
 		accent.Size = UDim2.new(0,4,1,0)
 		accent.BackgroundColor3 = ToastColors[nType] or Theme.Accent
 		accent.BorderSizePixel = 0
-		accent.ZIndex = 102
-		accent.Parent = toast
+		accent.ZIndex = 101
 
-		-- TITLE
-		local titleLabel = Instance.new("TextLabel")
-		titleLabel.BackgroundTransparency = 1
+		local titleLabel = Instance.new("TextLabel", toast)
 		titleLabel.Position = UDim2.new(0,14,0,8)
 		titleLabel.Size = UDim2.new(1,-44,0,18)
-		titleLabel.Text = tostring(title)
+		titleLabel.BackgroundTransparency = 1
 		titleLabel.Font = Theme.Font
 		titleLabel.TextSize = 16
 		titleLabel.TextColor3 = Theme.Text
 		titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 		titleLabel.TextYAlignment = Enum.TextYAlignment.Center
-		titleLabel.ZIndex = 103
-		titleLabel.Parent = toast
+		titleLabel.Text = tostring(title)
+		titleLabel.ZIndex = 102
 
-		-- MESSAGE
-		local msgLabel = Instance.new("TextLabel")
-		msgLabel.BackgroundTransparency = 1
+		local msgLabel = Instance.new("TextLabel", toast)
 		msgLabel.Position = UDim2.new(0,14,0,30)
 		msgLabel.Size = UDim2.new(1,-44,0,0)
-		msgLabel.TextWrapped = true
-		msgLabel.AutomaticSize = Enum.AutomaticSize.Y
-		msgLabel.Text = tostring(message)
+		msgLabel.BackgroundTransparency = 1
 		msgLabel.Font = Theme.Font
 		msgLabel.TextSize = 14
 		msgLabel.TextColor3 = Theme.Text
 		msgLabel.TextXAlignment = Enum.TextXAlignment.Left
 		msgLabel.TextYAlignment = Enum.TextYAlignment.Top
-		msgLabel.ZIndex = 103
-		msgLabel.Parent = toast
+		msgLabel.TextWrapped = true
+		msgLabel.AutomaticSize = Enum.AutomaticSize.Y
+		msgLabel.Text = tostring(message)
+		msgLabel.ZIndex = 102
 
-		-- CLOSE BUTTON
-		local close = Instance.new("TextButton")
+		local close = Instance.new("TextButton", toast)
 		close.Size = UDim2.new(0,24,0,24)
 		close.Position = UDim2.new(1,-28,0,6)
 		close.BackgroundTransparency = 1
@@ -1221,46 +1563,33 @@ function Library:CreateTab(name)
 		close.TextSize = 16
 		close.TextColor3 = Theme.Text
 		close.AutoButtonColor = false
-		close.ZIndex = 104
-		close.Parent = toast
+		close.ZIndex = 103
 
-		-- WAIT FOR LAYOUT
-		msgLabel:GetPropertyChangedSignal("AbsoluteSize"):Wait()
-		RunService.RenderStepped:Wait()
+		local textSize = TextService:GetTextSize(msgLabel.Text, msgLabel.TextSize, msgLabel.Font, Vector2.new(ToastHolder.AbsoluteSize.X-44, math.huge))
+		local targetHeight = textSize.Y + 44
 
-		local targetHeight = msgLabel.AbsoluteSize.Y + 44
+		tweenGui(toast, {Size = UDim2.new(1,0,0,targetHeight)}, 0.35)
 
-		-- SHOW ANIMATION
-		TweenService:Create(
-			toast,
-			TweenInfo.new(0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
-			{Size = UDim2.new(1,0,0,targetHeight)}
-		):Play()
-
-		-- Funktion zum Zerstören
+		local destroyed = false
 		local function destroyToast()
-			if toast and toast.Parent then
-				TweenService:Create(
-					toast,
-					TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-					{Size = UDim2.new(1,0,0,0), BackgroundTransparency = 1}
-				):Play()
-				task.delay(0.3, function()
-					if toast and toast.Parent then
-						toast:Destroy()
-					end
-				end)
-			end
+			if destroyed then return end
+			destroyed = true
+			tweenGui(toast, {Size=UDim2.new(1,0,0,0), BackgroundTransparency=1}, 0.25)
+			task.delay(0.3, function()
+				if toast and toast.Parent then
+					toast:Destroy()
+				end
+			end)
 		end
 
 		close.MouseButton1Click:Connect(destroyToast)
 		task.delay(duration, destroyToast)
 	end
 
-	-- PUBLIC API
 	Library.Notify = function(title, message, nType, duration)
 		NotificationService:Notify(title, message, nType, duration)
 	end
+
 
 
 
@@ -1271,41 +1600,47 @@ function Library:CreateTab(name)
 end
 
 
+
+
+
+
 --================ OPTIONAL SETTINGS TAB DEFINIEREN =================--
--- Funktion, die den Tab erstellt
 local function CreateOptionalSettingsTab()
 	local SettingsTab = Library:CreateTab("Settings")
 
-	-- Inhalte Tab nur einmal definieren
+	-- Slider: GUI Transparency
 	SettingsTab:Slider("GUI Transparency", 0, 1, currentTransparency, function(val)
 		currentTransparency = val
 		SetMainTransparency(val)
 	end)
 
-	SettingsTab:Toggle("Enable Blur", function(on)
+	-- Toggle: Enable Blur (default = false)
+	local blurToggle = SettingsTab:Toggle("Enable Blur", false, function(on)
 		SetBlur(on, 20)
 	end)
 
+	-- Color Picker
 	SettingsTab:FullRGBPicker("Pick Color", Color3.fromRGB(255,0,0), function(color)
 		SetMainBackgroundColor(color)
 	end)
 
+	-- Dropdown: Background Color
 	local bgDropdown = SettingsTab:Dropdown("Background Color", {"Atlantic","Red","Purple","Cyan"}, function(opt)
 		SetMainBackgroundColor(BgColors[opt])
 	end)
 	bgDropdown.refreshOnUpdate = true
 
-	SettingsTab:Toggle("Enable Resize", function(on)
+	-- Toggle: Enable Resize (default = false)
+	local resizeToggle = SettingsTab:Toggle("Enable Resize", false, function(on)
 		ResizeHandle.Visible = on
 	end)
 
 	return SettingsTab
 end
 
--- Überwachung, ob der Tab automatisch erstellt werden soll
--- Dies liest die Variable showOptionalSettings, sobald sie irgendwo gesetzt wird
+--================ AUTOMATISCHE TAB-ERSTELLUNG =================--
 task.spawn(function()
-	-- Wartet bis showOptionalSettings definiert wird
+	-- wartet bis _G.showOptionalSettings definiert wird
 	while _G.showOptionalSettings == nil do
 		task.wait(0.05)
 	end
