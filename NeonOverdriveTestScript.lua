@@ -94,10 +94,11 @@ local STEP = 4
 local CornerA = Vector3.new(-252, -8, 52)
 local CornerB = Vector3.new(112, 72, 368)
 
-local function place(pos)
+local function place(pos, blockName)
+    blockName = blockName or SelectedBlock
     local Remote = workspace.__THINGS.__REMOTES.placeblock
-    local Part = workspace.__THINGS.__BLOCKS[SelectedBlock].Part
-    Remote:FireServer({CFrame.new(pos), SelectedBlock, Part})
+    local Part = workspace.__THINGS.__BLOCKS[blockName].Part
+    Remote:FireServer({CFrame.new(pos), blockName, Part})
 end
 
 local function range(a, b)
@@ -219,6 +220,130 @@ BuildTab:Button("4-Row Stairs", function()
 
     stair("f"); stair("b"); stair("r"); stair("l")
 end)
+
+--================ NEW BUILD BUTTONS =================--
+
+-- The Chain Tower
+BuildTab:Button("The Chain Tower", function()
+    local BLOCK_NAME = "Wood"
+    local STEP = 4
+    local PLATFORM_Y = 72
+
+    local Workspace = workspace
+    local Things = Workspace:WaitForChild("__THINGS")
+    local Remotes = Things:WaitForChild("__REMOTES")
+    local PlaceRemote = Remotes:WaitForChild("placeblock")
+    local BlocksFolder = Things:WaitForChild("__BLOCKS")
+    local BlockPart = BlocksFolder[BLOCK_NAME].Part
+
+    local minX, maxX = math.min(CornerA.X, CornerB.X), math.max(CornerA.X, CornerB.X)
+    local minY, maxY = math.min(CornerA.Y, CornerB.Y), math.max(CornerA.Y, CornerB.Y)
+    local minZ, maxZ = math.min(CornerA.Z, CornerB.Z), math.max(CornerA.Z, CornerB.Z)
+    local CenterX = (minX + maxX) / 2
+    local CenterZ = (minZ + maxZ) / 2
+
+    local function placeTower(pos)
+        PlaceRemote:FireServer({CFrame.new(pos), BLOCK_NAME, BlockPart})
+    end
+
+    -- 3x3 Tower
+    for y = minY, maxY, STEP do
+        for x = -1, 1 do
+            for z = -1, 1 do
+                placeTower(Vector3.new(CenterX + (x*STEP), y, CenterZ + (z*STEP)))
+            end
+        end
+    end
+
+    -- 20x20 Platform
+    local SIZE = 20
+    local OFFSET = math.floor(SIZE / 2)
+    local PlatformCorners = {}
+    for x = -OFFSET, OFFSET-1 do
+        for z = -OFFSET, OFFSET-1 do
+            placeTower(Vector3.new(CenterX + (x*STEP), PLATFORM_Y, CenterZ + (z*STEP)))
+        end
+    end
+
+    table.insert(PlatformCorners, Vector3.new(CenterX - OFFSET*STEP, PLATFORM_Y, CenterZ - OFFSET*STEP))
+    table.insert(PlatformCorners, Vector3.new(CenterX + (OFFSET-1)*STEP, PLATFORM_Y, CenterZ - OFFSET*STEP))
+    table.insert(PlatformCorners, Vector3.new(CenterX + (OFFSET-1)*STEP, PLATFORM_Y, CenterZ + (OFFSET-1)*STEP))
+    table.insert(PlatformCorners, Vector3.new(CenterX - OFFSET*STEP, PLATFORM_Y, CenterZ + (OFFSET-1)*STEP))
+
+    local GroundCorners = {
+        Vector3.new(minX, minY, minZ),
+        Vector3.new(maxX, minY, minZ),
+        Vector3.new(maxX, minY, maxZ),
+        Vector3.new(minX, minY, maxZ)
+    }
+
+    local function connect3D(a,b)
+        local steps = math.max(
+            math.abs((b.X-a.X)/STEP),
+            math.abs((b.Y-a.Y)/STEP),
+            math.abs((b.Z-a.Z)/STEP)
+        )
+        for i=0,steps do
+            local t=i/steps
+            placeTower(Vector3.new(
+                a.X+(b.X-a.X)*t,
+                a.Y+(b.Y-a.Y)*t,
+                a.Z+(b.Z-a.Z)*t
+            ))
+        end
+    end
+
+    for _, pCorner in ipairs(PlatformCorners) do
+        for _, gCorner in ipairs(GroundCorners) do
+            connect3D(pCorner, gCorner)
+        end
+    end
+end)
+
+-- The Wall
+BuildTab:Button("The Wall", function()
+    local BLOCK_NAME = "Wood"
+    local STEP = 4
+    local minY = math.min(CornerA.Y, CornerB.Y)
+    local maxY = 72
+    local PlaceRemote = workspace.__THINGS.__REMOTES.placeblock
+    local BlockPart = workspace.__THINGS.__BLOCKS[BLOCK_NAME].Part
+
+    local function placeWall(pos)
+        PlaceRemote:FireServer({CFrame.new(pos), BLOCK_NAME, BlockPart})
+    end
+
+    for y = minY, maxY, STEP do
+        for x = CornerA.X, CornerB.X, STEP do
+            placeWall(Vector3.new(x, y, CornerA.Z))
+        end
+    end
+end)
+
+-- The Fly Screen
+BuildTab:Button("The Fly Screen", function()
+    local BLOCK_NAME = "Obsidian"
+    local STEP = 4
+    local minY = math.min(CornerA.Y, CornerB.Y)
+    local maxY = 72
+    local PlaceRemote = workspace.__THINGS.__REMOTES.placeblock
+    local BlockPart = workspace.__THINGS.__BLOCKS[BLOCK_NAME].Part
+
+    local function placeScreen(pos)
+        PlaceRemote:FireServer({CFrame.new(pos), BLOCK_NAME, BlockPart})
+    end
+
+    local rowToggle = false
+    for y = minY, maxY, STEP do
+        rowToggle = not rowToggle
+        for x = CornerA.X, CornerB.X, STEP do
+            if not rowToggle or (rowToggle and (math.floor((x-CornerA.X)/STEP)%2==0)) then
+                placeScreen(Vector3.new(x, y, CornerA.Z))
+            end
+        end
+    end
+end)
+
 
 
 --================== POWERS TAB ==================
