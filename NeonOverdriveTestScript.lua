@@ -1,3 +1,4 @@
+-- V 2.0
 --================ SETTINGS =================--
 _G.showOptionalSettings = true
 
@@ -119,7 +120,7 @@ end)
 --================== BUILD TAB ===================
 local BuildTab = Library:CreateTab("Build")
 
--- Dropdown
+-- Dropdown für Materialien
 local Materials = ReplicatedStorage.Assets.Materials
 local Blocks = {}
 for _, m in ipairs(Materials:GetChildren()) do
@@ -133,7 +134,7 @@ BuildTab:Dropdown("Select Build Block", Blocks, function(opt)
     SelectedBlock = opt
 end)
 
--- Build Helpers
+-- Allgemeine Hilfsfunktionen
 local STEP = 4
 local CornerA = Vector3.new(-252, -8, 52)
 local CornerB = Vector3.new(112, 72, 368)
@@ -152,6 +153,8 @@ local function range(a, b)
     end
     return t
 end
+
+--================ BUILD BUTTONS =================--
 
 -- Corner Version 1
 BuildTab:Button("Corner Version 1", function()
@@ -183,18 +186,18 @@ BuildTab:Button("Corner Version 1", function()
         end
     end
 
-    connect(T[1],T[2]);connect(T[2],T[3])
-    connect(T[3],T[4]);connect(T[4],T[1])
+    connect(T[1],T[2]); connect(T[2],T[3])
+    connect(T[3],T[4]); connect(T[4],T[1])
 
     local function diag(a,b)
-        local steps=math.abs((b.X-a.X)/STEP)
+        local steps = math.abs((b.X-a.X)/STEP)
         for i=0,steps do
-            local t=i/steps
+            local t = i/steps
             place(Vector3.new(a.X+(b.X-a.X)*t,a.Y,a.Z+(b.Z-a.Z)*t))
         end
     end
 
-    diag(T[1],T[3]);diag(T[2],T[4])
+    diag(T[1],T[3]); diag(T[2],T[4])
 end)
 
 -- Corner Version 2
@@ -213,7 +216,7 @@ BuildTab:Button("Corner Version 2", function()
     end
 
     local function connect3D(a,b)
-        local steps=math.max(
+        local steps = math.max(
             math.abs((b.X-a.X)/STEP),
             math.abs((b.Y-a.Y)/STEP),
             math.abs((b.Z-a.Z)/STEP)
@@ -265,36 +268,20 @@ BuildTab:Button("4-Row Stairs", function()
     stair("f"); stair("b"); stair("r"); stair("l")
 end)
 
---================ NEW BUILD BUTTONS =================--
-
 -- The Chain Tower
 BuildTab:Button("The Chain Tower", function()
-    local BLOCK_NAME = "Wood"
-    local STEP = 4
     local PLATFORM_Y = 72
-
-    local Workspace = workspace
-    local Things = Workspace:WaitForChild("__THINGS")
-    local Remotes = Things:WaitForChild("__REMOTES")
-    local PlaceRemote = Remotes:WaitForChild("placeblock")
-    local BlocksFolder = Things:WaitForChild("__BLOCKS")
-    local BlockPart = BlocksFolder[BLOCK_NAME].Part
-
     local minX, maxX = math.min(CornerA.X, CornerB.X), math.max(CornerA.X, CornerB.X)
     local minY, maxY = math.min(CornerA.Y, CornerB.Y), math.max(CornerA.Y, CornerB.Y)
     local minZ, maxZ = math.min(CornerA.Z, CornerB.Z), math.max(CornerA.Z, CornerB.Z)
     local CenterX = (minX + maxX) / 2
     local CenterZ = (minZ + maxZ) / 2
 
-    local function placeTower(pos)
-        PlaceRemote:FireServer({CFrame.new(pos), BLOCK_NAME, BlockPart})
-    end
-
     -- 3x3 Tower
     for y = minY, maxY, STEP do
         for x = -1, 1 do
             for z = -1, 1 do
-                placeTower(Vector3.new(CenterX + (x*STEP), y, CenterZ + (z*STEP)))
+                place(Vector3.new(CenterX + (x*STEP), y, CenterZ + (z*STEP)))
             end
         end
     end
@@ -305,7 +292,7 @@ BuildTab:Button("The Chain Tower", function()
     local PlatformCorners = {}
     for x = -OFFSET, OFFSET-1 do
         for z = -OFFSET, OFFSET-1 do
-            placeTower(Vector3.new(CenterX + (x*STEP), PLATFORM_Y, CenterZ + (z*STEP)))
+            place(Vector3.new(CenterX + (x*STEP), PLATFORM_Y, CenterZ + (z*STEP)))
         end
     end
 
@@ -329,7 +316,7 @@ BuildTab:Button("The Chain Tower", function()
         )
         for i=0,steps do
             local t=i/steps
-            placeTower(Vector3.new(
+            place(Vector3.new(
                 a.X+(b.X-a.X)*t,
                 a.Y+(b.Y-a.Y)*t,
                 a.Z+(b.Z-a.Z)*t
@@ -346,47 +333,30 @@ end)
 
 -- The Wall
 BuildTab:Button("The Wall", function()
-    local BLOCK_NAME = "Wood"
-    local STEP = 4
     local minY = math.min(CornerA.Y, CornerB.Y)
     local maxY = 72
-    local PlaceRemote = workspace.__THINGS.__REMOTES.placeblock
-    local BlockPart = workspace.__THINGS.__BLOCKS[BLOCK_NAME].Part
-
-    local function placeWall(pos)
-        PlaceRemote:FireServer({CFrame.new(pos), BLOCK_NAME, BlockPart})
-    end
-
     for y = minY, maxY, STEP do
         for x = CornerA.X, CornerB.X, STEP do
-            placeWall(Vector3.new(x, y, CornerA.Z))
+            place(Vector3.new(x, y, CornerA.Z))
         end
     end
 end)
 
 -- The Fly Screen
 BuildTab:Button("The Fly Screen", function()
-    local BLOCK_NAME = "Obsidian"
-    local STEP = 4
     local minY = math.min(CornerA.Y, CornerB.Y)
     local maxY = 72
-    local PlaceRemote = workspace.__THINGS.__REMOTES.placeblock
-    local BlockPart = workspace.__THINGS.__BLOCKS[BLOCK_NAME].Part
-
-    local function placeScreen(pos)
-        PlaceRemote:FireServer({CFrame.new(pos), BLOCK_NAME, BlockPart})
-    end
-
     local rowToggle = false
     for y = minY, maxY, STEP do
         rowToggle = not rowToggle
         for x = CornerA.X, CornerB.X, STEP do
             if not rowToggle or (rowToggle and (math.floor((x-CornerA.X)/STEP)%2==0)) then
-                placeScreen(Vector3.new(x, y, CornerA.Z))
+                place(Vector3.new(x, y, CornerA.Z))
             end
         end
     end
 end)
+
 
 
 
