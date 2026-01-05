@@ -1,5 +1,5 @@
---// CYBERPUNK ULTIMATE UI LIBRARY BY ZIDUI5
---// VERSION 2.4 
+--// CYBERPUNK ULTIMATE UI LIBRARY BY ZIDIU1
+--// VERSION 2.5
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -34,6 +34,13 @@ local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
 ScreenGui.Name = "CyberpunkUI"
 ScreenGui.ResetOnSpawn = false
 
+
+--================ UI STATE =================--
+local isOpen = false
+
+local OpenUI
+local CloseUI
+
 --================ OPEN BUTTON =================--
 local OpenButton = Instance.new("TextButton", ScreenGui)
 OpenButton.Size = UDim2.fromOffset(40,40)
@@ -53,6 +60,69 @@ Corner.CornerRadius = UDim.new(0,6)
 local Stroke = Instance.new("UIStroke", OpenButton)
 Stroke.Thickness = 2
 Stroke.Color = Color3.fromRGB(0,0,255)
+
+
+
+--================ OPEN BUTTON DRAG + CLICK =================--
+
+local dragging = false
+local dragStartPos
+local buttonStartPos
+local potentialClick = false
+
+local DRAG_THRESHOLD = 6 -- Pixel bevor es als Drag zählt
+
+OpenButton.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+		potentialClick = true
+		dragStartPos = input.Position
+		buttonStartPos = OpenButton.Position
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if not dragStartPos then return end
+
+	if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		local delta = input.Position - dragStartPos
+
+		-- Ab gewisser Bewegung = Drag
+		if math.abs(delta.X) > DRAG_THRESHOLD
+			or math.abs(delta.Y) > DRAG_THRESHOLD then
+			dragging = true
+			potentialClick = false
+		end
+
+		if dragging then
+			OpenButton.Position = buttonStartPos + UDim2.fromOffset(delta.X, delta.Y)
+		end
+	end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		-- Klick nur wenn NICHT gezogen
+		if potentialClick and not dragging then
+			isOpen = not isOpen
+			if isOpen then
+				OpenUI()
+			else
+				CloseUI()
+			end
+		end
+
+		dragging = false
+		potentialClick = false
+		dragStartPos = nil
+	end
+end)
+
 
 --================ NEON GLOW LAYER =================--
 local Glow = Instance.new("Frame", OpenButton)
@@ -309,6 +379,41 @@ task.spawn(function()
 end)
 
 
+--================ SUBTITLE "By Zidiu1" =================--
+local SubTitle = Instance.new("TextLabel", TitleBar)
+SubTitle.Size = UDim2.new(1,0,0,20) 
+SubTitle.Position = UDim2.fromOffset(0, 40)
+SubTitle.BackgroundTransparency = 1
+SubTitle.Text = "<i>By Zidiu1</i>"
+SubTitle.Font = Title.Font 
+SubTitle.TextSize = 15
+SubTitle.TextColor3 = Theme.Accent
+SubTitle.RichText = true
+SubTitle.TextStrokeTransparency = 1
+SubTitle.TextXAlignment = Enum.TextXAlignment.Center
+SubTitle.TextYAlignment = Enum.TextYAlignment.Center
+
+-- Neon-Effekt wie Titel
+local SubTitleStroke = Instance.new("UIStroke", SubTitle)
+SubTitleStroke.Thickness = 1.5
+SubTitleStroke.Color = Theme.Accent
+SubTitleStroke.Transparency = 0.6
+
+task.spawn(function()
+	while true do
+		-- TextColor tween
+		Tween(SubTitle,{2,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut},{TextColor3 = Theme.Secondary})
+		-- Stroke tween
+		Tween(SubTitleStroke,{2,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut},{Color = Theme.Secondary})
+		task.wait(2)
+		Tween(SubTitle,{2,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut},{TextColor3 = Theme.Accent})
+		Tween(SubTitleStroke,{2,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut},{Color = Theme.Accent})
+		task.wait(2)
+	end
+end)
+
+
+
 
 --================ DRAG =================--
 do
@@ -356,10 +461,9 @@ Pages.Size = UDim2.new(1,-180,1,-75)
 Pages.BackgroundTransparency = 1
 
 --================ OPEN / CLOSE ANIMATION =================--
-local isOpen = false
 Main.Size = UDim2.fromScale(0.5,0.8)
 
-local function OpenUI()
+OpenUI = function()
 	Main.Visible = true
 	local targetSize = SavedWindowSize or DEFAULT_SIZE
 	Main.Size = targetSize - UDim2.fromOffset(40, 40)
@@ -372,28 +476,18 @@ end
 
 
 
-local function CloseUI()
+CloseUI = function()
 	local targetSize = SavedWindowSize or DEFAULT_SIZE
-
 	Tween(Main, {0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In}, {
 		Size = targetSize - UDim2.fromOffset(40, 40),
 		BackgroundTransparency = 1
 	})
-
 	task.delay(0.25, function()
 		Main.Visible = false
 	end)
 end
 
 
-OpenButton.MouseButton1Click:Connect(function()
-	isOpen = not isOpen
-	if isOpen then
-		OpenUI()
-	else
-		CloseUI()
-	end
-end)
 
 --================ LIBRARY =================--
 local Library = {}
