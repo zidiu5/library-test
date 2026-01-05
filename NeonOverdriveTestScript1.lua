@@ -128,6 +128,7 @@ local isDrawing = false
 local GRID_Y = 9
 local GRID_X = 7
 local lastPos = nil
+local currentInput = nil
 
 
 local function drawDot(pos)
@@ -161,8 +162,9 @@ end
 --================ INPUT ===================
 local function processInput()
     if not Main.Visible then return end
-
-    local absPos = UserInputService:GetMouseLocation()
+    if not currentInput then return end
+    
+    local absPos = currentInput.Position
     local canvasPos = Canvas.AbsolutePosition
     local canvasSize = Canvas.AbsoluteSize
 
@@ -208,15 +210,16 @@ UserInputService.InputBegan:Connect(function(input, gpe)
     if input.UserInputType == Enum.UserInputType.MouseButton1
     or input.UserInputType == Enum.UserInputType.Touch then
         isDrawing = true
+        currentInput = input
         lastPos = nil
         processInput()
     end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-    or input.UserInputType == Enum.UserInputType.Touch then
+    if input == currentInput then
         isDrawing = false
+        currentInput = nil
         lastPos = nil
     end
 end)
@@ -226,6 +229,7 @@ UserInputService.InputChanged:Connect(function(input)
     if not isDrawing then return end
     if input.UserInputType == Enum.UserInputType.MouseMovement
     or input.UserInputType == Enum.UserInputType.Touch then
+        currentInput = input
         processInput()
     end
 end)
