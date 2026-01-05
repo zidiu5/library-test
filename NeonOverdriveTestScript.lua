@@ -116,25 +116,18 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-
 --================== BUILD TAB ===================
 local BuildTab = Library:CreateTab("Build")
 
--- Dropdown für Materialien
-local Materials = ReplicatedStorage.Assets.Materials
-local Blocks = {}
-for _, m in ipairs(Materials:GetChildren()) do
-    if m:IsA("Model") then
-        table.insert(Blocks, m.Name)
-    end
-end
+-- Dropdown für Materialien (fest definiert)
+local Materials = {"Wood", "Brick", "Metal", "Obsidian", "Firebrick"}
+local SelectedBlock = Materials[1]
 
-local SelectedBlock = Blocks[1] or "Wood"
-BuildTab:Dropdown("Select Build Block", Blocks, function(opt)
+BuildTab:Dropdown("Select Build Block", Materials, function(opt)
     SelectedBlock = opt
 end)
 
--- Allgemeine Hilfsfunktionen
+-- Hilfsfunktionen
 local STEP = 4
 local CornerA = Vector3.new(-252, -8, 52)
 local CornerB = Vector3.new(112, 72, 368)
