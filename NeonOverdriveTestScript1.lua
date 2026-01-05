@@ -119,6 +119,8 @@ local mode = "Pen"
 local isDrawing = false
 local GRID_Y = 9
 local GRID_X = 7
+local lastPos = nil
+
 
 local function drawDot(pos)
     local snX = math.floor(pos.X / scaleFactor) * scaleFactor
@@ -149,10 +151,10 @@ local function erase(pos)
 end
 
 --================ INPUT ===================
-local function processInput(input)
+local function processInput()
     if not Main.Visible then return end
 
-    local absPos = input.Position
+    local absPos = UserInputService:GetMouseLocation()
     local canvasPos = Canvas.AbsolutePosition
     local canvasSize = Canvas.AbsoluteSize
 
@@ -162,17 +164,35 @@ local function processInput(input)
     if relX < 0 or relY < 0
     or relX > canvasSize.X
     or relY > canvasSize.Y then
+        lastPos = nil
         return
     end
 
     local relPos = Vector2.new(relX, relY)
 
-    if mode == "Pen" then
-        drawDot(relPos)
+    if lastPos then
+        local dist = (relPos - lastPos).Magnitude
+        local steps = math.max(1, math.floor(dist / (scaleFactor / 2)))
+
+        for i = 0, steps do
+            local p = lastPos:Lerp(relPos, i / steps)
+            if mode == "Pen" then
+                drawDot(p)
+            else
+                erase(p)
+            end
+        end
     else
-        erase(relPos)
+        if mode == "Pen" then
+            drawDot(relPos)
+        else
+            erase(relPos)
+        end
     end
+
+    lastPos = relPos
 end
+
 
 
 UserInputService.InputBegan:Connect(function(input, gpe)
@@ -180,27 +200,28 @@ UserInputService.InputBegan:Connect(function(input, gpe)
     if input.UserInputType == Enum.UserInputType.MouseButton1
     or input.UserInputType == Enum.UserInputType.Touch then
         isDrawing = true
-        processInput(input)
+        lastPos = nil
+        processInput()
     end
 end)
 
 UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then isDrawing = false end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if isDrawing then
-        if lastPos then
-            local dist = (relPos - lastPos).Magnitude
-            local steps = math.max(1, math.floor(dist / (scaleFactor / 2)))
-            for i = 0, steps do
-                local p = lastPos:Lerp(relPos, i / steps)
-                if mode == "Pen" then drawDot(p) else erase(p) end
-            end
-        end
-        lastPos = relPos
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        isDrawing = false
+        lastPos = nil
     end
 end)
+
+
+UserInputService.InputChanged:Connect(function(input)
+    if not isDrawing then return end
+    if input.UserInputType == Enum.UserInputType.MouseMovement
+    or input.UserInputType == Enum.UserInputType.Touch then
+        processInput()
+    end
+end)
+
 
 --================ BUTTONS =================
 PenBtn.MouseButton1Click:Connect(function() mode = "Pen" PenBtn.BackgroundColor3 = Color3.fromRGB(80,80,80) EraserBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) end)
