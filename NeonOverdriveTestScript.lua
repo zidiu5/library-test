@@ -45,7 +45,7 @@ MobTab:Button("Invincible Mobs", function()
     local Remote = RemotesFolder.mobdodamage
     for _, mob in ipairs(Monsters:GetChildren()) do
         if mob:IsA("Model") then
-            Remote:FireServer({{{mob, -100000000000000000000000000}}})
+            Remote:FireServer({{{mob, -10000000000000000000000000000000000000000000000000000000000}}})
         end
     end
 end)
