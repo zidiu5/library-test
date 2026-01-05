@@ -11,7 +11,15 @@ local Remotes = Things:WaitForChild("__REMOTES")
 local PlaceRemote = Remotes:WaitForChild("placeblock")
 local Blocks = Things:WaitForChild("__BLOCKS")
 local BlockName = "Obsidian"
-local BlockPart = Blocks[BlockName].Part
+local BlockFolder = Blocks:FindFirstChild(BlockName)
+
+if not BlockFolder then
+    warn("Block existiert nicht:", BlockName)
+    return
+end
+
+local BlockPart = BlockFolder.Part
+
 
 local GRID_STEP = 4 
 
