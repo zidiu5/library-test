@@ -51,23 +51,25 @@ MobTab:Button("Invincible Mobs", function()
 end)
 
 --================ SELECTIVE KILL ===================
-local SelectedTypes = {} -- speichert die ausgewählten Monster-Typen
 local MonsterTypes = {"Robot", "Roguebot", "Skeleton", "Tank", "Zombie"}
+local SelectedTypes = {} -- Dictionary für Multiselect
 
-MobTab:DropdownMulti("Select Mob Types", MonsterTypes, function(selection)
-    SelectedTypes = selection
-end)
+-- Multi-Select Dropdown
+local MobDropdown = MobTab:Dropdown("Select Mob Types", MonsterTypes, function(opt, state, allSelected)
+    SelectedTypes = allSelected -- speichern das komplette Dictionary
+end, true) -- true = Multiselect
 
+-- Kill Selected Mobs Button
 MobTab:Button("Kill Selected Mobs", function()
-    if #SelectedTypes == 0 then return end
     local Monsters = workspaceThings.Monsters
     local Remote = RemotesFolder.mobdodamage
     for _, mob in ipairs(Monsters:GetChildren()) do
-        if mob:IsA("Model") and table.find(SelectedTypes, mob.Name) then
+        if mob:IsA("Model") and SelectedTypes[mob.Name] then
             Remote:FireServer({{{mob, 100000}}})
         end
     end
 end)
+
 
 -- Auto Kill Toggle with Radius Slider
 local AutoKillEnabled = false
