@@ -1,4 +1,4 @@
--- V 2.0
+-- V 2.1
 --================ SETTINGS =================--
 _G.showOptionalSettings = true
 
@@ -23,7 +23,7 @@ MobTab:Button("Kill All Mobs", function()
     local Remote = RemotesFolder.mobdodamage
     for _, mob in ipairs(Monsters:GetChildren()) do
         if mob:IsA("Model") then
-            Remote:FireServer({{{mob, 10000}}})
+            Remote:FireServer({{{mob, 100000}}})
         end
     end
 end)
@@ -35,6 +35,17 @@ MobTab:Button("Heal All Mobs", function()
     for _, mob in ipairs(Monsters:GetChildren()) do
         if mob:IsA("Model") then
             Remote:FireServer({{{mob, -10000}}})
+        end
+    end
+end)
+
+-- Make All Mobs Invincible
+MobTab:Button("Invincible Mobs", function()
+    local Monsters = workspaceThings.Monsters
+    local Remote = RemotesFolder.mobdodamage
+    for _, mob in ipairs(Monsters:GetChildren()) do
+        if mob:IsA("Model") then
+            Remote:FireServer({{{mob, -100000000000000000000000000}}})
         end
     end
 end)
@@ -323,6 +334,245 @@ BuildTab:Button("The Chain Tower", function()
         end
     end
 end)
+
+
+
+
+-- LOW-LAG STAIRS
+BuildTab:Button("Low-Lag Stairs", function()
+    local Remote = workspace.__THINGS.__REMOTES.placeblock
+    local BlockType = SelectedBlock -- benutzt das Dropdown-Material
+    local BlockPart = workspace.__THINGS.__BLOCKS[BlockType].Part
+
+    local HEIGHT_STEP = 1   -- jede Stufe hoch
+    local LENGTH_STEP = 2   -- jede Stufe vorwärts
+    local WIDTH = 3         -- 3 Blöcke breit
+    local BLOCK_SPACING = 4 -- Abstand zwischen Blöcken
+
+    local CornerA = Vector3.new(-252, -8, 52) -- Boden
+    local CornerB = Vector3.new(112, 72, 368) -- Oben
+
+    local centerX = (CornerA.X + CornerB.X) / 2
+    local centerZ = (CornerA.Z + CornerB.Z) / 2
+
+    -- BUILD FUNCTION 
+    local function place(pos)
+        Remote:FireServer({
+            CFrame.new(pos),
+            BlockType,
+            BlockPart
+        })
+    end
+
+    -- BUILD STAIR FUNCTION 
+    local function buildStair(direction)
+        local currentY = CornerA.Y
+        local steps = math.floor((CornerB.Y - CornerA.Y) / HEIGHT_STEP)
+
+        for i = 0, steps do
+            local offsetX = 0
+            local offsetZ = 0
+            if direction == "forward" then offsetZ = i * LENGTH_STEP end
+            if direction == "backward" then offsetZ = -i * LENGTH_STEP end
+            if direction == "right" then offsetX = i * LENGTH_STEP end
+            if direction == "left" then offsetX = -i * LENGTH_STEP end
+
+            for w = 0, WIDTH-1 do
+                local posX = centerX + offsetX
+                local posZ = centerZ + offsetZ
+                if direction == "forward" or direction == "backward" then
+                    posX = centerX - math.floor(WIDTH/2) * BLOCK_SPACING + w * BLOCK_SPACING
+                else
+                    posZ = centerZ - math.floor(WIDTH/2) * BLOCK_SPACING + w * BLOCK_SPACING
+                end
+                place(Vector3.new(posX, currentY, posZ))
+            end
+
+            currentY = currentY + HEIGHT_STEP
+        end
+    end
+
+    -- BUILD ALL 4 DIRECTIONS 
+    buildStair("forward")
+    buildStair("backward")
+    buildStair("right")
+    buildStair("left")
+end)
+
+
+--================ THE FLYING CRYSTAL ===================
+BuildTab:Button("The Flying Crystal", function()
+    local BLOCK_NAME = SelectedBlock
+    local STEP = 4
+    local PLATFORM_Y = 4
+    local TOP_Y = 72
+
+    local PlaceRemote = workspace.__THINGS.__REMOTES.placeblock
+    local BlockPart = workspace.__THINGS.__BLOCKS[BLOCK_NAME].Part
+
+    local CornerA = Vector3.new(-252, -8, 52)
+    local CornerB = Vector3.new(112, 72, 368)
+
+    local minX,maxX = math.min(CornerA.X,CornerB.X), math.max(CornerA.X,CornerB.X)
+    local minY,maxY = math.min(CornerA.Y,CornerB.Y), math.max(CornerA.Y,CornerB.Y)
+    local minZ,maxZ = math.min(CornerA.Z,CornerB.Z), math.max(CornerA.Z,CornerB.Z)
+
+    local function place(pos)
+        PlaceRemote:FireServer({CFrame.new(pos), BLOCK_NAME, BlockPart})
+    end
+
+    local CenterX = (minX + maxX) / 2
+    local CenterZ = (minZ + maxZ) / 2
+
+    -- Plattform
+    local SIZE = 20
+    local OFFSET = math.floor(SIZE / 2)
+    local PlatformCorners = {}
+
+    for x=-OFFSET,OFFSET-1 do
+        for z=-OFFSET,OFFSET-1 do
+            place(Vector3.new(CenterX+x*STEP, PLATFORM_Y, CenterZ+z*STEP))
+        end
+    end
+
+    PlatformCorners = {
+        Vector3.new(CenterX-OFFSET*STEP, PLATFORM_Y, CenterZ-OFFSET*STEP),
+        Vector3.new(CenterX+(OFFSET-1)*STEP, PLATFORM_Y, CenterZ-OFFSET*STEP),
+        Vector3.new(CenterX+(OFFSET-1)*STEP, PLATFORM_Y, CenterZ+(OFFSET-1)*STEP),
+        Vector3.new(CenterX-OFFSET*STEP, PLATFORM_Y, CenterZ+(OFFSET-1)*STEP)
+    }
+
+    -- Säulen
+    local MapCorners = {
+        Vector3.new(minX,minY,minZ),
+        Vector3.new(maxX,minY,minZ),
+        Vector3.new(maxX,minY,maxZ),
+        Vector3.new(minX,minY,maxZ)
+    }
+
+    for _,c in ipairs(MapCorners) do
+        for y=minY,TOP_Y,STEP do
+            place(Vector3.new(c.X,y,c.Z))
+        end
+    end
+
+    local function connect3D(a,b)
+        local steps=math.max(
+            math.abs((b.X-a.X)/STEP),
+            math.abs((b.Y-a.Y)/STEP),
+            math.abs((b.Z-a.Z)/STEP)
+        )
+        for i=0,steps do
+            local t=i/steps
+            place(Vector3.new(
+                a.X+(b.X-a.X)*t,
+                a.Y+(b.Y-a.Y)*t,
+                a.Z+(b.Z-a.Z)*t
+            ))
+        end
+    end
+
+    -- Ketten
+    for i=1,4 do
+        connect3D(Vector3.new(MapCorners[i].X,TOP_Y,MapCorners[i].Z), PlatformCorners[i])
+    end
+
+    local centerTop = Vector3.new(CenterX, TOP_Y, CenterZ)
+    for _,c in ipairs(PlatformCorners) do connect3D(c, centerTop) end
+    for _,c in ipairs(MapCorners) do
+        connect3D(Vector3.new(c.X,TOP_Y,c.Z), centerTop)
+    end
+end)
+
+
+
+--================ THE FLYING HOUSE ===================
+BuildTab:Button("The Flying House", function()
+    local BLOCK_NAME = SelectedBlock
+    local STEP = 4
+    local PLATFORM_BOTTOM_Y = 4
+    local PLATFORM_MIDDLE_Y = 40
+    local TOP_Y = 72
+
+    local PlaceRemote = workspace.__THINGS.__REMOTES.placeblock
+    local BlockPart = workspace.__THINGS.__BLOCKS[BLOCK_NAME].Part
+
+    local CornerA = Vector3.new(-252, -8, 52)
+    local CornerB = Vector3.new(112, 72, 368)
+
+    local minX,maxX = math.min(CornerA.X,CornerB.X), math.max(CornerA.X,CornerB.X)
+    local minY,maxY = math.min(CornerA.Y,CornerB.Y), math.max(CornerA.Y,CornerB.Y)
+    local minZ,maxZ = math.min(CornerA.Z,CornerB.Z), math.max(CornerA.Z,CornerB.Z)
+
+    local function place(pos)
+        PlaceRemote:FireServer({CFrame.new(pos), BLOCK_NAME, BlockPart})
+    end
+
+    local function buildPlatform(cx,cz,y)
+        local SIZE=20
+        local OFFSET=math.floor(SIZE/2)
+        local corners={}
+        for x=-OFFSET,OFFSET-1 do
+            for z=-OFFSET,OFFSET-1 do
+                place(Vector3.new(cx+x*STEP,y,cz+z*STEP))
+            end
+        end
+        corners={
+            Vector3.new(cx-OFFSET*STEP,y,cz-OFFSET*STEP),
+            Vector3.new(cx+(OFFSET-1)*STEP,y,cz-OFFSET*STEP),
+            Vector3.new(cx+(OFFSET-1)*STEP,y,cz+(OFFSET-1)*STEP),
+            Vector3.new(cx-OFFSET*STEP,y,cz+(OFFSET-1)*STEP)
+        }
+        return corners
+    end
+
+    local CenterX=(minX+maxX)/2
+    local CenterZ=(minZ+maxZ)/2
+
+    local bottomCorners = buildPlatform(CenterX,CenterZ,PLATFORM_BOTTOM_Y)
+    local middleCorners = buildPlatform(CenterX,CenterZ,PLATFORM_MIDDLE_Y)
+
+    local MapCorners={
+        Vector3.new(minX,minY,minZ),
+        Vector3.new(maxX,minY,minZ),
+        Vector3.new(maxX,minY,maxZ),
+        Vector3.new(minX,minY,maxZ)
+    }
+
+    for _,c in ipairs(MapCorners) do
+        for y=minY,TOP_Y,STEP do
+            place(Vector3.new(c.X,y,c.Z))
+        end
+    end
+
+    local function connect3D(a,b)
+        local steps=math.max(
+            math.abs((b.X-a.X)/STEP),
+            math.abs((b.Y-a.Y)/STEP),
+            math.abs((b.Z-a.Z)/STEP)
+        )
+        for i=0,steps do
+            local t=i/steps
+            place(Vector3.new(
+                a.X+(b.X-a.X)*t,
+                a.Y+(b.Y-a.Y)*t,
+                a.Z+(b.Z-a.Z)*t
+            ))
+        end
+    end
+
+    local topCenter=Vector3.new(CenterX,TOP_Y,CenterZ)
+
+    for i=1,4 do
+        connect3D(Vector3.new(MapCorners[i].X,TOP_Y,MapCorners[i].Z), bottomCorners[i])
+        connect3D(bottomCorners[i], middleCorners[i])
+        connect3D(middleCorners[i], topCenter)
+        connect3D(Vector3.new(MapCorners[i].X,TOP_Y,MapCorners[i].Z), topCenter)
+    end
+end)
+
+
+
 
 -- The Wall
 BuildTab:Button("The Wall", function()
