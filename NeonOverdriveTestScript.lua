@@ -70,6 +70,50 @@ MobTab:Toggle("Auto-Kill Mobs", false, function(state)
     end
 end)
 
+--================ CIRCLE VISUALIZER ===================
+local RunService = game:GetService("RunService")
+local circleEnabled = false
+local SEGMENTS = 60
+local CIRCLE_PART_SIZE = 2
+local CircleParts = {}
+
+-- Create parts
+for i = 1, SEGMENTS do
+    local part = Instance.new("Part")
+    part.Size = Vector3.new(CIRCLE_PART_SIZE, CIRCLE_PART_SIZE, CIRCLE_PART_SIZE)
+    part.Anchored = true
+    part.CanCollide = false
+    part.Material = Enum.Material.Neon
+    part.Color = Color3.fromRGB(255, 0, 0)
+    part.Transparency = 1
+    part.Parent = workspace
+    table.insert(CircleParts, part)
+end
+
+-- Add Circle Toggle to GUI
+MobTab:Toggle("Show Kill Radius", false, function(state)
+    circleEnabled = state
+end)
+
+-- Update loop
+RunService.RenderStepped:Connect(function()
+    local Character = LocalPlayer.Character
+    local HRP = Character and Character:FindFirstChild("HumanoidRootPart")
+    if HRP then
+        for i, part in ipairs(CircleParts) do
+            if circleEnabled then
+                local angle = (i / SEGMENTS) * math.pi * 2
+                local x = HRP.Position.X + math.cos(angle) * KillRadius
+                local z = HRP.Position.Z + math.sin(angle) * KillRadius
+                local y = HRP.Position.Y + 1
+                part.Position = Vector3.new(x, y, z)
+                part.Transparency = 0.5
+            else
+                part.Transparency = 1
+            end
+        end
+    end
+end)
 
 
 --================== BUILD TAB ===================
