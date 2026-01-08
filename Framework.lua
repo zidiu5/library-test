@@ -1,5 +1,5 @@
 --// CYBERPUNK ULTIMATE UI LIBRARY
---// VERSION 2.69.Fucking shit
+--// VERSION idk, this framework kills me
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -7,89 +7,6 @@ local TweenService = game:GetService("TweenService")
 local Player = Players.LocalPlayer
 local Mouse = Player:GetMouse()
 local SavedWindowSize = nil
-
-
---================ CONFIG SYSTEM =================--
-local HttpService = game:GetService("HttpService")
-local Config = {}
-Config.FileName = "CyberpunkUI_Config.json"
-Config.Data = {}
-
-local function SaveConfig(data)
-	if writefile then
-		writefile(Config.FileName, HttpService:JSONEncode(data))
-		return
-	end
-
-	local folder = Player:FindFirstChild("UI_CONFIG")
-	if not folder then
-		folder = Instance.new("Folder")
-		folder.Name = "UI_CONFIG"
-		folder.Parent = Player
-	end
-
-	local value = folder:FindFirstChild("DATA")
-	if not value then
-		value = Instance.new("StringValue")
-		value.Name = "DATA"
-		value.Parent = folder
-	end
-
-	value.Value = HttpService:JSONEncode(data)
-end
-
-local function LoadConfig()
-	if isfile and readfile and isfile(Config.FileName) then
-		local ok, data = pcall(function()
-			return HttpService:JSONDecode(readfile(Config.FileName))
-		end)
-		if ok then return data end
-	end
-
-	local folder = Player:FindFirstChild("UI_CONFIG")
-	if folder then
-		local value = folder:FindFirstChild("DATA")
-		if value and value.Value ~= "" then
-			local ok, data = pcall(function()
-				return HttpService:JSONDecode(value.Value)
-			end)
-			if ok then return data end
-		end
-	end
-
-	return {}
-end
-
-function Config:Get(key, default)
-	return Config.Data[key] ~= nil and Config.Data[key] or default
-end
-
-function Config:Set(key, value)
-	Config.Data[key] = value
-	SaveConfig(Config.Data)
-end
-
--- 💡 HELPER FÜR Color3
-function Config:ColorToTable(color)
-	return {r = color.R, g = color.G, b = color.B}
-end
-
-function Config:TableToColor(tbl, default)
-	if not tbl then return default end
-	return Color3.new(tbl.r, tbl.g, tbl.b)
-end
-
-Config.Data = LoadConfig()
-
-local PLACE_KEY = "Place_" .. game.PlaceId
-Config.Data[PLACE_KEY] = Config.Data[PLACE_KEY] or {}
-local GameConfig = Config.Data[PLACE_KEY]
-
--- Keybind + Drag Toggle
-guiKey = GameConfig.GuiKey or "RightShift"
-DragEnabled = GameConfig.DragEnabled or false
-
-
 
 
 --================ THEME =================--
@@ -114,7 +31,6 @@ end
 
 --================ SCREEN GUI =================--
 local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Name = "CyberpunkUI"
 ScreenGui.ResetOnSpawn = false
 
@@ -136,7 +52,7 @@ OpenButton.BackgroundColor3 = Theme.Main
 OpenButton.TextColor3 = Theme.Accent
 OpenButton.BorderSizePixel = 0
 OpenButton.AutoButtonColor = false
-OpenButton.ZIndex = 100
+OpenButton.ZIndex = 10
 OpenButton.Active = true -- nötig für Input, NICHT für Drag
 
 local Corner = Instance.new("UICorner", OpenButton)
@@ -147,8 +63,7 @@ Stroke.Thickness = 2
 Stroke.Color = Color3.fromRGB(0,0,255)
 
 --================ DRAG SETTINGS =================--
-dragEnabled = GameConfig.DragEnabled or false
-guiKey = GameConfig.GuiKey or "RightShift"
+local dragEnabled = false -- ⭐ STANDARD: AUS
 local dragging = false
 local dragStartPos = nil
 local buttonStartPos = nil
@@ -205,10 +120,11 @@ UIS.InputEnded:Connect(function(input)
 		or input.UserInputType == Enum.UserInputType.Touch then
 
 		if potentialClick then
+			isOpen = not isOpen
 			if isOpen then
-				CloseUI()
-			else
 				OpenUI()
+			else
+				CloseUI()
 			end
 		end
 
@@ -292,44 +208,18 @@ OpenButton.MouseLeave:Connect(function()
 end)
 
 --================ MAIN FRAME =================--
-local SavedGuiSize = GameConfig.GuiSize or {X=0.5, Y=0.8, OffsetX=0, OffsetY=0}
-local SavedGuiPosition = GameConfig.GuiPosition or {X=0.5, Y=0.5, OffsetX=0, OffsetY=0}
-local SavedMainColor = Config:TableToColor(GameConfig.MainColor, Theme.Main)
-
 local Main = Instance.new("Frame", ScreenGui)
-
-Main.ZIndex = 50
-
-
-Main.Size = UDim2.new(SavedGuiSize.X, SavedGuiSize.OffsetX, SavedGuiSize.Y, SavedGuiSize.OffsetY)
-Main.Position = UDim2.new(SavedGuiPosition.X, SavedGuiPosition.OffsetX, SavedGuiPosition.Y, SavedGuiPosition.OffsetY)
+Main.Size = UDim2.fromScale(0.5,0.8)
+Main.Position = UDim2.fromScale(0.5,0.5)
 Main.AnchorPoint = Vector2.new(0.5,0.5)
-Main.BackgroundColor3 = SavedMainColor
+Main.BackgroundColor3 = Theme.Main
+Main.Active = true
 Main.Visible = false
 Main.ClipsDescendants = true
 
-
-
-
--- Beispiel: Speichern von GUI-Größe
-function SaveGUISettings()
-	local PLACE_KEY = "Place_" .. game.PlaceId
-	Config.Data[PLACE_KEY] = Config.Data[PLACE_KEY] or {}
-	local GameConfig = Config.Data[PLACE_KEY]
-
-	-- Größe & Position speichern
-	GameConfig.GuiSize = { X = Main.Size.X.Scale, Y = Main.Size.Y.Scale, OffsetX = Main.Size.X.Offset, OffsetY = Main.Size.Y.Offset }
-	GameConfig.GuiPosition = { X = Main.Position.X.Scale, Y = Main.Position.Y.Scale, OffsetX = Main.Position.X.Offset, OffsetY = Main.Position.Y.Offset }
-
-	-- Toggle, Keybind, Farbe
-	GameConfig.GuiKey = guiKey
-	GameConfig.DragEnabled = dragEnabled
-	GameConfig.MainColor = Config:ColorToTable(Main.BackgroundColor3)
-
-	Config:Set(PLACE_KEY, GameConfig)
+if SavedWindowSize then
+	Main.Size = SavedWindowSize
 end
-
-
 
 
 
@@ -584,18 +474,13 @@ Pages.Size = UDim2.new(1,-180,1,-75)
 Pages.BackgroundTransparency = 1
 
 --================ OPEN / CLOSE ANIMATION =================--
-local DEFAULT_SIZE = UDim2.fromScale(0.5, 0.8)
-
+Main.Size = UDim2.fromScale(0.5,0.8)
 
 OpenUI = function()
-	if isOpen then return end
-	isOpen = true
-
 	Main.Visible = true
 	local targetSize = SavedWindowSize or DEFAULT_SIZE
 	Main.Size = targetSize - UDim2.fromOffset(40, 40)
 	Main.BackgroundTransparency = currentTransparency
-
 	Tween(Main, {0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out}, {
 		Size = targetSize,
 		BackgroundTransparency = currentTransparency
@@ -605,26 +490,15 @@ end
 
 
 CloseUI = function()
-	if not isOpen then return end
-	isOpen = false
-
 	local targetSize = SavedWindowSize or DEFAULT_SIZE
 	Tween(Main, {0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In}, {
 		Size = targetSize - UDim2.fromOffset(40, 40),
 		BackgroundTransparency = 1
 	})
-
 	task.delay(0.25, function()
 		Main.Visible = false
 	end)
 end
-
-
-
-
-
-
-
 
 
 --================ LIBRARY =================--
@@ -1946,6 +1820,36 @@ end
 --================ OPTIONAL SETTINGS TAB DEFINIEREN =================-- 
 local function CreateOptionalSettingsTab()
 	local SettingsTab = Library:CreateTab("Settings")
+	
+	local HttpService = game:GetService("HttpService")
+	local configFileName = "CyberpunkUI_Config.json"
+
+	local function SaveConfig()
+		local config = {
+			Transparency = currentTransparency,
+			BackgroundColor = {r=Main.BackgroundColor3.R, g=Main.BackgroundColor3.G, b=Main.BackgroundColor3.B},
+			ResizeEnabled = ResizeHandle.Visible,
+			DragEnabled = dragEnabled,
+			GUIKey = guiKey,
+			GUISize = {x=Main.Size.X.Scale, y=Main.Size.Y.Scale, offsetX=Main.Size.X.Offset, offsetY=Main.Size.Y.Offset}
+		}
+		pcall(function() writefile(configFileName, HttpService:JSONEncode(config)) end)
+	end
+
+	local function LoadConfig()
+		if not pcall(function() return readfile(configFileName) end) then return end
+		local data = readfile(configFileName)
+		local success, config = pcall(function() return HttpService:JSONDecode(data) end)
+		if not success then return end
+
+		if config.Transparency then currentTransparency = config.Transparency SetMainTransparency(config.Transparency) end
+		if config.BackgroundColor then local c=config.BackgroundColor SetMainBackgroundColor(Color3.new(c.r,c.g,c.b)) end
+		if config.ResizeEnabled ~= nil then ResizeHandle.Visible = config.ResizeEnabled end
+		if config.DragEnabled ~= nil then dragEnabled = config.DragEnabled end
+		if config.GUIKey then guiKey = config.GUIKey end
+		if config.GUISize then local s=config.GUISize Main.Size = UDim2.new(s.x,s.offsetX,s.y,s.offsetY) end
+	end
+
 
 	-- Slider: GUI Transparency
 	SettingsTab:Slider("GUI Transparency", 0, 1, currentTransparency, function(val)
@@ -1985,12 +1889,11 @@ local function CreateOptionalSettingsTab()
 	game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
 		if gameProcessed then return end
 		if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode.Name == guiKey then
-			if isOpen then
+			if Main.Visible then
 				CloseUI()
 			else
 				OpenUI()
 			end
-
 		end
 	end)
 
@@ -2008,13 +1911,15 @@ local function CreateOptionalSettingsTab()
 		end
 	end)
 	
-	-- Save Settings
-	SettingsTab:Button("Save Settings", function()
-		SaveGUISettings()
-		Library.Notify("Settings", "Settings saved!", "Success", 2)
+	local saveBtn = SettingsTab:Button("Save Config", function()
+		SaveConfig()
+		Library.Notify("Config","Configuration saved!","Success")
 	end)
 
-
+	local loadBtn = SettingsTab:Button("Load Config", function()
+		LoadConfig()
+		Library.Notify("Config","Configuration loaded!","Success")
+	end)
 
 
 
@@ -2033,6 +1938,19 @@ task.spawn(function()
 		CreateOptionalSettingsTab()
 	end
 end)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
