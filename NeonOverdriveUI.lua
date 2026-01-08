@@ -1,5 +1,5 @@
---// CYBERPUNK ULTIMATE UI LIBRARY BY ZIDIU1
---// VERSION 2.5
+--// CYBERPUNK ULTIMATE UI LIBRARY
+--// VERSION 2.3 "NEON OVERDRIVE ANIMATED + GLOW"
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -53,6 +53,7 @@ OpenButton.TextColor3 = Theme.Accent
 OpenButton.BorderSizePixel = 0
 OpenButton.AutoButtonColor = false
 OpenButton.ZIndex = 10
+OpenButton.Active = true -- nötig für Input, NICHT für Drag
 
 local Corner = Instance.new("UICorner", OpenButton)
 Corner.CornerRadius = UDim.new(0,6)
@@ -61,28 +62,37 @@ local Stroke = Instance.new("UIStroke", OpenButton)
 Stroke.Thickness = 2
 Stroke.Color = Color3.fromRGB(0,0,255)
 
-
-
---================ OPEN BUTTON DRAG + CLICK =================--
-
+--================ DRAG SETTINGS =================--
+local dragEnabled = false -- ⭐ STANDARD: AUS
 local dragging = false
-local dragStartPos
-local buttonStartPos
+local dragStartPos = nil
+local buttonStartPos = nil
 local potentialClick = false
 
-local DRAG_THRESHOLD = 6 -- Pixel bevor es als Drag zählt
+local DRAG_THRESHOLD = 6
 
+--================ INPUT BEGAN =================--
 OpenButton.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1
 		or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = false
+
 		potentialClick = true
-		dragStartPos = input.Position
-		buttonStartPos = OpenButton.Position
+
+		if dragEnabled then
+			dragStartPos = input.Position
+			buttonStartPos = OpenButton.Position
+			dragging = false
+		else
+			dragStartPos = nil
+			dragging = false
+		end
 	end
 end)
 
+
+--================ INPUT CHANGED =================--
 UIS.InputChanged:Connect(function(input)
+	if not dragEnabled then return end
 	if not dragStartPos then return end
 
 	if input.UserInputType == Enum.UserInputType.MouseMovement
@@ -90,7 +100,6 @@ UIS.InputChanged:Connect(function(input)
 
 		local delta = input.Position - dragStartPos
 
-		-- Ab gewisser Bewegung = Drag
 		if math.abs(delta.X) > DRAG_THRESHOLD
 			or math.abs(delta.Y) > DRAG_THRESHOLD then
 			dragging = true
@@ -98,17 +107,19 @@ UIS.InputChanged:Connect(function(input)
 		end
 
 		if dragging then
-			OpenButton.Position = buttonStartPos + UDim2.fromOffset(delta.X, delta.Y)
+			OpenButton.Position =
+				buttonStartPos + UDim2.fromOffset(delta.X, delta.Y)
 		end
 	end
 end)
 
+
+--================ INPUT ENDED =================--
 UIS.InputEnded:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1
 		or input.UserInputType == Enum.UserInputType.Touch then
 
-		-- Klick nur wenn NICHT gezogen
-		if potentialClick and not dragging then
+		if potentialClick then
 			isOpen = not isOpen
 			if isOpen then
 				OpenUI()
@@ -122,6 +133,8 @@ UIS.InputEnded:Connect(function(input)
 		dragStartPos = nil
 	end
 end)
+
+
 
 
 --================ NEON GLOW LAYER =================--
@@ -488,7 +501,6 @@ CloseUI = function()
 end
 
 
-
 --================ LIBRARY =================--
 local Library = {}
 local CurrentPage, CurrentTab
@@ -562,7 +574,7 @@ function Library:CreateTab(name)
 	end
 
 	--================ ELEMENT FUNCTIONS =================--
-	
+
 	-- BUTTON
 	function Elements:Button(text, callback)
 		orderCounter += 1
@@ -586,7 +598,7 @@ function Library:CreateTab(name)
 			_connections = {}
 		}
 
-		-- Color for Hover / Click
+		-- Farben für Hover / Click
 		local baseColor = Theme.Button
 		local hoverColor = Color3.new(
 			math.clamp(baseColor.R + 0.06, 0, 1),
@@ -987,8 +999,8 @@ function Library:CreateTab(name)
 		end
 
 		buildOptions()
-		
-		
+
+
 		-- Open/Close
 		title.MouseButton1Click:Connect(function()
 			DropdownObject.opened = not DropdownObject.opened
@@ -1216,7 +1228,7 @@ function Library:CreateTab(name)
 
 		return Dropdown
 	end
-	
+
 	-- FULL RGB PICKER
 	function Elements:FullRGBPicker(label, defaultColor, callback)
 		orderCounter += 1
@@ -1558,6 +1570,113 @@ function Library:CreateTab(name)
 		return lbl
 	end
 
+	-- KEYBIND
+	function Elements:Keybind(label, defaultKey, callback)
+		orderCounter += 1
+
+		local button = Instance.new("TextButton", Page)
+		button.LayoutOrder = orderCounter
+		button.Size = UDim2.new(1,0,0,45)
+		button.Font = Theme.Font or Enum.Font.SourceSans
+		button.TextSize = 16
+		button.TextColor3 = Theme.Text or Color3.new(1,1,1)
+		button.BackgroundColor3 = Theme.Button or Color3.fromRGB(50,50,50)
+		button.AutoButtonColor = false
+		button.Text = label.." : "..tostring(defaultKey)
+		Instance.new("UICorner", button)
+
+		local Keybind = {
+			key = defaultKey,
+			_listening = false,
+			_destroyed = false,
+			_connections = {},
+			_events = {Changed = {}}
+		}
+
+		local UserInputService = game:GetService("UserInputService")
+
+		local function refresh()
+			if Keybind._listening then
+				button.Text = label.." : <Press Key>"
+				button.TextColor3 = Color3.fromRGB(0,170,255)
+			else
+				button.Text = label.." : "..tostring(Keybind.key)
+				button.TextColor3 = Theme.Text or Color3.new(1,1,1)
+			end
+		end
+
+		-- Button Click -> Start Listening
+		table.insert(Keybind._connections, button.MouseButton1Click:Connect(function()
+			if Keybind._destroyed then return end
+			Keybind._listening = true
+			refresh()
+		end))
+
+		-- Listen for Key Press without blocking
+		table.insert(Keybind._connections, UserInputService.InputBegan:Connect(function(input, processed)
+			if Keybind._destroyed then return end
+			if Keybind._listening and input.UserInputType == Enum.UserInputType.Keyboard then
+				Keybind.key = input.KeyCode.Name
+				Keybind._listening = false
+				refresh()
+				if callback then
+					local success, err = pcall(callback, Keybind.key)
+					if not success then warn(err) end
+				end
+
+				for _,fn in ipairs(Keybind._events.Changed) do
+					pcall(fn, Keybind.key)
+				end
+			end
+		end))
+
+		-- API
+		function Keybind:Set(newKey)
+			if Keybind._destroyed then return end
+			Keybind.key = newKey
+			refresh()
+			if callback then pcall(callback, Keybind.key) end
+		end
+
+		function Keybind:Get()
+			return Keybind.key
+		end
+
+		function Keybind:OnChanged(fn)
+			table.insert(Keybind._events.Changed, fn)
+			local disconnected = false
+			return {
+				Disconnect = function()
+					if disconnected then return end
+					disconnected = true
+					for i,v in ipairs(self._events.Changed) do
+						if v == fn then
+							table.remove(self._events.Changed, i)
+							break
+						end
+					end
+				end
+			}
+		end
+
+		function Keybind:Destroy()
+			if Keybind._destroyed then return end
+			Keybind._destroyed = true
+			for _,c in ipairs(Keybind._connections) do
+				c:Disconnect()
+			end
+			for _,list in pairs(Keybind._events) do
+				table.clear(list)
+			end
+			button:Destroy()
+		end
+
+		refresh()
+		return Keybind
+	end
+
+
+
 
 	--================ NOTIFICATION TOAST SYSTEM =================--
 
@@ -1698,9 +1817,39 @@ end
 
 
 
---================ OPTIONAL SETTINGS TAB DEFINIEREN =================--
+--================ OPTIONAL SETTINGS TAB DEFINIEREN =================-- 
 local function CreateOptionalSettingsTab()
 	local SettingsTab = Library:CreateTab("Settings")
+	
+	local HttpService = game:GetService("HttpService")
+	local configFileName = "CyberpunkUI_Config.json"
+
+	local function SaveConfig()
+		local config = {
+			Transparency = currentTransparency,
+			BackgroundColor = {r=Main.BackgroundColor3.R, g=Main.BackgroundColor3.G, b=Main.BackgroundColor3.B},
+			ResizeEnabled = ResizeHandle.Visible,
+			DragEnabled = dragEnabled,
+			GUIKey = guiKey,
+			GUISize = {x=Main.Size.X.Scale, y=Main.Size.Y.Scale, offsetX=Main.Size.X.Offset, offsetY=Main.Size.Y.Offset}
+		}
+		pcall(function() writefile(configFileName, HttpService:JSONEncode(config)) end)
+	end
+
+	local function LoadConfig()
+		if not pcall(function() return readfile(configFileName) end) then return end
+		local data = readfile(configFileName)
+		local success, config = pcall(function() return HttpService:JSONDecode(data) end)
+		if not success then return end
+
+		if config.Transparency then currentTransparency = config.Transparency SetMainTransparency(config.Transparency) end
+		if config.BackgroundColor then local c=config.BackgroundColor SetMainBackgroundColor(Color3.new(c.r,c.g,c.b)) end
+		if config.ResizeEnabled ~= nil then ResizeHandle.Visible = config.ResizeEnabled end
+		if config.DragEnabled ~= nil then dragEnabled = config.DragEnabled end
+		if config.GUIKey then guiKey = config.GUIKey end
+		if config.GUISize then local s=config.GUISize Main.Size = UDim2.new(s.x,s.offsetX,s.y,s.offsetY) end
+	end
+
 
 	-- Slider: GUI Transparency
 	SettingsTab:Slider("GUI Transparency", 0, 1, currentTransparency, function(val)
@@ -1708,7 +1857,7 @@ local function CreateOptionalSettingsTab()
 		SetMainTransparency(val)
 	end)
 
-	-- Toggle: Enable Blur (default = false)
+	-- Toggle: Enable Blur
 	local blurToggle = SettingsTab:Toggle("Enable Blur", false, function(on)
 		SetBlur(on, 20)
 	end)
@@ -1724,13 +1873,59 @@ local function CreateOptionalSettingsTab()
 	end)
 	bgDropdown.refreshOnUpdate = true
 
-	-- Toggle: Enable Resize (default = false)
+	-- Toggle: Enable Resize
 	local resizeToggle = SettingsTab:Toggle("Enable Resize", false, function(on)
 		ResizeHandle.Visible = on
 	end)
 
+	-- ================= KEYBIND: GUI OPEN/CLOSE =================
+	local guiKey = "RightShift" -- Standard Key
+	local guiToggleKeybind = SettingsTab:Keybind("Toggle GUI", guiKey, function(newKey)
+		guiKey = newKey
+		print("GUI Toggle Keybind changed to:", guiKey)
+	end)
+
+	-- Dauerhaftes Input Event
+	game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed then return end
+		if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode.Name == guiKey then
+			if Main.Visible then
+				CloseUI()
+			else
+				OpenUI()
+			end
+		end
+	end)
+
+	-- ================= TOGGLE: SHOW/HIDE OPEN BUTTON =================
+	local showOpenBtnToggle = SettingsTab:Toggle("Show Open Button", true, function(state)
+		OpenButton.Visible = state
+	end)
+
+	SettingsTab:Toggle("Drag Open Button", false, function(state)
+		dragEnabled = state
+
+		if not state then
+			dragging = false
+			dragStartPos = nil
+		end
+	end)
+	
+	local saveBtn = SettingsTab:Button("Save Config", function()
+		SaveConfig()
+		Library.Notify("Config","Configuration saved!","Success")
+	end)
+
+	local loadBtn = SettingsTab:Button("Load Config", function()
+		LoadConfig()
+		Library.Notify("Config","Configuration loaded!","Success")
+	end)
+
+
+
 	return SettingsTab
 end
+
 
 --================ AUTOMATISCHE TAB-ERSTELLUNG =================--
 task.spawn(function()
