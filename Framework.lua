@@ -1,5 +1,5 @@
---// CYBERPUNK ULTIMATE UI LIBRARY BY ZIDIU1
---// VERSION 2.5
+--// CYBERPUNK ULTIMATE UI LIBRARY
+--// VERSION 2.69.Fucking shit
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -81,26 +81,13 @@ end
 
 Config.Data = LoadConfig()
 
-
-
 local PLACE_KEY = "Place_" .. game.PlaceId
 Config.Data[PLACE_KEY] = Config.Data[PLACE_KEY] or {}
 local GameConfig = Config.Data[PLACE_KEY]
 
--- Keybind
+-- Keybind + Drag Toggle
 guiKey = GameConfig.GuiKey or "RightShift"
-
--- Drag Toggle
 DragEnabled = GameConfig.DragEnabled or false
-
--- Farbe merken
-SavedMainColor = Config:TableToColor(GameConfig.MainColor, Color3.fromRGB(40, 40, 40))
-
--- GUI Size / Position merken
-SavedGuiSize = GameConfig.GuiSize or {X=1, Y=1, OffsetX=0, OffsetY=0}
-SavedGuiPosition = GameConfig.GuiPosition or {X=0, Y=0, OffsetX=20, OffsetY=200}
-
-
 
 
 
@@ -127,6 +114,7 @@ end
 
 --================ SCREEN GUI =================--
 local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Name = "CyberpunkUI"
 ScreenGui.ResetOnSpawn = false
 
@@ -148,7 +136,7 @@ OpenButton.BackgroundColor3 = Theme.Main
 OpenButton.TextColor3 = Theme.Accent
 OpenButton.BorderSizePixel = 0
 OpenButton.AutoButtonColor = false
-OpenButton.ZIndex = 10
+OpenButton.ZIndex = 100
 OpenButton.Active = true -- nötig für Input, NICHT für Drag
 
 local Corner = Instance.new("UICorner", OpenButton)
@@ -159,7 +147,8 @@ Stroke.Thickness = 2
 Stroke.Color = Color3.fromRGB(0,0,255)
 
 --================ DRAG SETTINGS =================--
-local dragEnabled = false -- ⭐ STANDARD: AUS
+dragEnabled = GameConfig.DragEnabled or false
+guiKey = GameConfig.GuiKey or "RightShift"
 local dragging = false
 local dragStartPos = nil
 local buttonStartPos = nil
@@ -216,11 +205,10 @@ UIS.InputEnded:Connect(function(input)
 		or input.UserInputType == Enum.UserInputType.Touch then
 
 		if potentialClick then
-			isOpen = not isOpen
 			if isOpen then
-				OpenUI()
-			else
 				CloseUI()
+			else
+				OpenUI()
 			end
 		end
 
@@ -304,18 +292,22 @@ OpenButton.MouseLeave:Connect(function()
 end)
 
 --================ MAIN FRAME =================--
+local SavedGuiSize = GameConfig.GuiSize or {X=0.5, Y=0.8, OffsetX=0, OffsetY=0}
+local SavedGuiPosition = GameConfig.GuiPosition or {X=0.5, Y=0.5, OffsetX=0, OffsetY=0}
+local SavedMainColor = Config:TableToColor(GameConfig.MainColor, Theme.Main)
+
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.fromScale(0.5,0.8)
-Main.Position = UDim2.fromScale(0.5,0.5)
+
+Main.ZIndex = 50
+
+
+Main.Size = UDim2.new(SavedGuiSize.X, SavedGuiSize.OffsetX, SavedGuiSize.Y, SavedGuiSize.OffsetY)
+Main.Position = UDim2.new(SavedGuiPosition.X, SavedGuiPosition.OffsetX, SavedGuiPosition.Y, SavedGuiPosition.OffsetY)
 Main.AnchorPoint = Vector2.new(0.5,0.5)
-Main.BackgroundColor3 = Theme.Main
-Main.Active = true
+Main.BackgroundColor3 = SavedMainColor
 Main.Visible = false
 Main.ClipsDescendants = true
 
-if SavedWindowSize then
-	Main.Size = SavedWindowSize
-end
 
 
 
@@ -323,20 +315,20 @@ end
 function SaveGUISettings()
 	local PLACE_KEY = "Place_" .. game.PlaceId
 	Config.Data[PLACE_KEY] = Config.Data[PLACE_KEY] or {}
-
 	local GameConfig = Config.Data[PLACE_KEY]
 
-	-- Größe speichern
+	-- Größe & Position speichern
 	GameConfig.GuiSize = { X = Main.Size.X.Scale, Y = Main.Size.Y.Scale, OffsetX = Main.Size.X.Offset, OffsetY = Main.Size.Y.Offset }
 	GameConfig.GuiPosition = { X = Main.Position.X.Scale, Y = Main.Position.Y.Scale, OffsetX = Main.Position.X.Offset, OffsetY = Main.Position.Y.Offset }
 
-	-- Toggle, Keybinds, Farben etc.
+	-- Toggle, Keybind, Farbe
 	GameConfig.GuiKey = guiKey
-	GameConfig.DragEnabled = DragEnabled
+	GameConfig.DragEnabled = dragEnabled
 	GameConfig.MainColor = Config:ColorToTable(Main.BackgroundColor3)
 
-	Config:Set(PLACE_KEY, GameConfig) -- speichert alles
+	Config:Set(PLACE_KEY, GameConfig)
 end
+
 
 
 
@@ -592,13 +584,18 @@ Pages.Size = UDim2.new(1,-180,1,-75)
 Pages.BackgroundTransparency = 1
 
 --================ OPEN / CLOSE ANIMATION =================--
-Main.Size = UDim2.fromScale(0.5,0.8)
+local DEFAULT_SIZE = UDim2.fromScale(0.5, 0.8)
+
 
 OpenUI = function()
+	if isOpen then return end
+	isOpen = true
+
 	Main.Visible = true
 	local targetSize = SavedWindowSize or DEFAULT_SIZE
 	Main.Size = targetSize - UDim2.fromOffset(40, 40)
 	Main.BackgroundTransparency = currentTransparency
+
 	Tween(Main, {0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out}, {
 		Size = targetSize,
 		BackgroundTransparency = currentTransparency
@@ -608,15 +605,26 @@ end
 
 
 CloseUI = function()
+	if not isOpen then return end
+	isOpen = false
+
 	local targetSize = SavedWindowSize or DEFAULT_SIZE
 	Tween(Main, {0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In}, {
 		Size = targetSize - UDim2.fromOffset(40, 40),
 		BackgroundTransparency = 1
 	})
+
 	task.delay(0.25, function()
 		Main.Visible = false
 	end)
 end
+
+
+
+
+
+
+
 
 
 --================ LIBRARY =================--
@@ -1977,11 +1985,12 @@ local function CreateOptionalSettingsTab()
 	game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
 		if gameProcessed then return end
 		if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode.Name == guiKey then
-			if Main.Visible then
+			if isOpen then
 				CloseUI()
 			else
 				OpenUI()
 			end
+
 		end
 	end)
 
