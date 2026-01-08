@@ -1,5 +1,5 @@
 --// CYBERPUNK ULTIMATE UI LIBRARY
---// VERSION 2.3 "NEON OVERDRIVE ANIMATED + GLOW"
+--// VERSION 3 (I hope the last one)
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
