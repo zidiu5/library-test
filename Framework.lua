@@ -1,5 +1,5 @@
 --// CYBERPUNK ULTIMATE UI LIBRARY
---// VERSION idk, this framework kills me
+--// VERSION 3 
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -7,6 +7,102 @@ local TweenService = game:GetService("TweenService")
 local Player = Players.LocalPlayer
 local Mouse = Player:GetMouse()
 local SavedWindowSize = nil
+
+
+--================ CONFIG SYSTEM =================--
+local HttpService = game:GetService("HttpService")
+local Config = {}
+Config.FileName = "CyberpunkUI_Config.json"
+Config.Data = {}
+
+local function SaveConfig(data)
+	if writefile then
+		writefile(Config.FileName, HttpService:JSONEncode(data))
+		return
+	end
+
+	local folder = Player:FindFirstChild("UI_CONFIG")
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = "UI_CONFIG"
+		folder.Parent = Player
+	end
+
+	local value = folder:FindFirstChild("DATA")
+	if not value then
+		value = Instance.new("StringValue")
+		value.Name = "DATA"
+		value.Parent = folder
+	end
+
+	value.Value = HttpService:JSONEncode(data)
+end
+
+local function LoadConfig()
+	if isfile and readfile and isfile(Config.FileName) then
+		local ok, data = pcall(function()
+			return HttpService:JSONDecode(readfile(Config.FileName))
+		end)
+		if ok then return data end
+	end
+
+	local folder = Player:FindFirstChild("UI_CONFIG")
+	if folder then
+		local value = folder:FindFirstChild("DATA")
+		if value and value.Value ~= "" then
+			local ok, data = pcall(function()
+				return HttpService:JSONDecode(value.Value)
+			end)
+			if ok then return data end
+		end
+	end
+
+	return {}
+end
+
+function Config:Get(key, default)
+	return Config.Data[key] ~= nil and Config.Data[key] or default
+end
+
+function Config:Set(key, value)
+	Config.Data[key] = value
+	SaveConfig(Config.Data)
+end
+
+-- 💡 HELPER FÜR Color3
+function Config:ColorToTable(color)
+	return {r = color.R, g = color.G, b = color.B}
+end
+
+function Config:TableToColor(tbl, default)
+	if not tbl then return default end
+	return Color3.new(tbl.r, tbl.g, tbl.b)
+end
+
+Config.Data = LoadConfig()
+
+
+
+local PLACE_KEY = "Place_" .. game.PlaceId
+Config.Data[PLACE_KEY] = Config.Data[PLACE_KEY] or {}
+local GameConfig = Config.Data[PLACE_KEY]
+
+-- Keybind
+guiKey = GameConfig.GuiKey or "RightShift"
+
+-- Drag Toggle
+DragEnabled = GameConfig.DragEnabled or false
+
+-- Farbe merken
+SavedMainColor = Config:TableToColor(GameConfig.MainColor, Color3.fromRGB(40, 40, 40))
+
+-- GUI Size / Position merken
+SavedGuiSize = GameConfig.GuiSize or {X=1, Y=1, OffsetX=0, OffsetY=0}
+SavedGuiPosition = GameConfig.GuiPosition or {X=0, Y=0, OffsetX=20, OffsetY=200}
+
+
+
+
 
 
 --================ THEME =================--
@@ -53,7 +149,7 @@ OpenButton.TextColor3 = Theme.Accent
 OpenButton.BorderSizePixel = 0
 OpenButton.AutoButtonColor = false
 OpenButton.ZIndex = 10
-OpenButton.Active = true -- nötig für Input, NICHT für Drag
+OpenButton.Active = true 
 
 local Corner = Instance.new("UICorner", OpenButton)
 Corner.CornerRadius = UDim.new(0,6)
@@ -62,14 +158,65 @@ local Stroke = Instance.new("UIStroke", OpenButton)
 Stroke.Thickness = 2
 Stroke.Color = Color3.fromRGB(0,0,255)
 
+--================ UNSICHTBARE SWIPE ZONE =================--
+local SwipeZone = Instance.new("Frame", ScreenGui)
+SwipeZone.Name = "SwipeZone"
+SwipeZone.Size = UDim2.new(0, 40, 0.6, 0) 
+SwipeZone.Position = UDim2.new(0, 0, 0.2, 0) 
+SwipeZone.BackgroundTransparency = 1 
+SwipeZone.Active = true
+SwipeZone.Visible = false
+SwipeZone.ZIndex = 1000
+
+-- Visual Feedback (Optional: Kleiner Streifen der aufleuchtet)
+local SwipeIndicator = Instance.new("Frame", SwipeZone)
+SwipeIndicator.Size = UDim2.new(0, 2, 1, 0)
+SwipeIndicator.BackgroundColor3 = Theme.Accent
+SwipeIndicator.BackgroundTransparency = 1 -- Standard unsichtbar
+Instance.new("UICorner", SwipeIndicator)
+
+local swipeStart = nil
+local SWIPE_THRESHOLD = 100 
+
+SwipeZone.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		swipeStart = input.Position
+		Tween(SwipeIndicator, {0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundTransparency = 0.5})
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if swipeStart and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position.X - swipeStart.X
+		-- Wenn wir ziehen, leuchtet der Balken stärker
+		local glow = math.clamp(1 - (delta / SWIPE_THRESHOLD), 0.2, 1)
+		SwipeIndicator.BackgroundTransparency = glow
+
+		local glow = math.clamp(delta / SWIPE_THRESHOLD, 0, 1)
+		SwipeIndicator.BackgroundTransparency = 1 - glow
+		SwipeIndicator.Size = UDim2.new(0, 2 + (glow * 4), 1, 0) -- Wird dicker beim Ziehen
+
+		if delta > SWIPE_THRESHOLD then
+			swipeStart = nil
+			if not isOpen then OpenUI() end
+			Tween(SwipeIndicator, {0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundTransparency = 1})
+		end
+	end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	swipeStart = nil
+	Tween(SwipeIndicator, {0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundTransparency = 1})
+end)
+
+
 --================ DRAG SETTINGS =================--
-local dragEnabled = false -- ⭐ STANDARD: AUS
+local dragEnabled = false 
 local dragging = false
 local dragStartPos = nil
 local buttonStartPos = nil
 local potentialClick = false
-
-local DRAG_THRESHOLD = 6
+local DRAG_THRESHOLD = 8
 
 --================ INPUT BEGAN =================--
 OpenButton.InputBegan:Connect(function(input)
@@ -82,37 +229,30 @@ OpenButton.InputBegan:Connect(function(input)
 			dragStartPos = input.Position
 			buttonStartPos = OpenButton.Position
 			dragging = false
-		else
-			dragStartPos = nil
-			dragging = false
 		end
 	end
 end)
 
-
 --================ INPUT CHANGED =================--
 UIS.InputChanged:Connect(function(input)
-	if not dragEnabled then return end
-	if not dragStartPos then return end
+	if not dragEnabled or not dragStartPos then return end
 
 	if input.UserInputType == Enum.UserInputType.MouseMovement
 		or input.UserInputType == Enum.UserInputType.Touch then
 
 		local delta = input.Position - dragStartPos
 
-		if math.abs(delta.X) > DRAG_THRESHOLD
-			or math.abs(delta.Y) > DRAG_THRESHOLD then
+		-- Magnitude ist sauberer für Diagonalen
+		if delta.Magnitude > DRAG_THRESHOLD then
 			dragging = true
 			potentialClick = false
 		end
 
 		if dragging then
-			OpenButton.Position =
-				buttonStartPos + UDim2.fromOffset(delta.X, delta.Y)
+			OpenButton.Position = buttonStartPos + UDim2.fromOffset(delta.X, delta.Y)
 		end
 	end
 end)
-
 
 --================ INPUT ENDED =================--
 UIS.InputEnded:Connect(function(input)
@@ -121,21 +261,15 @@ UIS.InputEnded:Connect(function(input)
 
 		if potentialClick then
 			isOpen = not isOpen
-			if isOpen then
-				OpenUI()
-			else
-				CloseUI()
-			end
+			if isOpen then OpenUI() else CloseUI() end
 		end
 
+		-- Reset für den nächsten Klick/Drag
 		dragging = false
 		potentialClick = false
 		dragStartPos = nil
 	end
 end)
-
-
-
 
 --================ NEON GLOW LAYER =================--
 local Glow = Instance.new("Frame", OpenButton)
@@ -176,36 +310,51 @@ task.spawn(function()
 end)
 
 
--- Hover
+-- Korrigierter Hover für Designs
 OpenButton.MouseEnter:Connect(function()
-	Tween(OpenButton,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{
-		BackgroundColor3 = Color3.fromRGB(20,20,35)
-	})
-	Tween(Stroke,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{
-		Color = Theme.Secondary
-	})
-	Tween(Glow,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{
-		BackgroundColor3 = Theme.Secondary
-	})
-	Tween(GlowStroke,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{
-		Color = Theme.Secondary
-	})
+	if OpenButton.Text == "O" then -- Minimalist Check
+		Tween(OpenButton, {0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out}, {
+			BackgroundTransparency = 0.2
+		})
+	else
+		Tween(OpenButton, {0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out}, {
+			BackgroundColor3 = Color3.fromRGB(20,20,35)
+		})
+		Tween(Stroke,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{
+			Color = Theme.Secondary
+		})
+		Tween(Glow,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{
+			BackgroundColor3 = Theme.Secondary
+		})
+		Tween(GlowStroke,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{
+			Color = Theme.Secondary
+		})
+	end
 end)
 
+
 OpenButton.MouseLeave:Connect(function()
-	Tween(OpenButton,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{
-		BackgroundColor3 = Theme.Main
-	})
-	Tween(Stroke,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{
-		Color = Color3.fromRGB(0,0,255)
-	})
-	Tween(Glow,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{
-		BackgroundColor3 = Color3.fromRGB(0,0,255)
-	})
-	Tween(GlowStroke,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{
-		Color = Color3.fromRGB(0,0,255)
-	})
+	if OpenButton.Text == "O" then
+		Tween(OpenButton, {0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out}, {
+			BackgroundTransparency = 1
+		})
+	else
+		Tween(OpenButton, {0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out}, {
+			BackgroundColor3 = Theme.Main
+		})
+		Tween(Stroke,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{
+			Color = Color3.fromRGB(0,0,255)
+		})
+		Tween(Glow,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{
+			BackgroundColor3 = Color3.fromRGB(0,0,255)
+		})
+		Tween(GlowStroke,{0.2,Enum.EasingStyle.Sine,Enum.EasingDirection.Out},{
+			Color = Color3.fromRGB(0,0,255)
+		})
+	end
 end)
+
+
 
 --================ MAIN FRAME =================--
 local Main = Instance.new("Frame", ScreenGui)
@@ -219,6 +368,68 @@ Main.ClipsDescendants = true
 
 if SavedWindowSize then
 	Main.Size = SavedWindowSize
+end
+
+--================ CLOSE X BUTTON (NUR EINMAL HIER!) =================--
+local CloseX = Instance.new("TextButton", Main)
+CloseX.Name = "CloseX"
+CloseX.Size = UDim2.fromOffset(30, 30)
+CloseX.Position = UDim2.new(1, -35, 0, 12)
+CloseX.BackgroundTransparency = 1
+CloseX.Text = "✕"
+CloseX.Font = Theme.Font
+CloseX.TextSize = 22
+CloseX.TextColor3 = Theme.Accent
+CloseX.ZIndex = 100
+CloseX.Visible = false -- Standardmäßig aus
+
+CloseX.MouseButton1Click:Connect(function()
+	CloseUI()
+end)
+
+-- Hover Effekt für das X
+CloseX.MouseEnter:Connect(function()
+	Tween(CloseX, {0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {TextColor3 = Theme.Secondary})
+end)
+CloseX.MouseLeave:Connect(function()
+	Tween(CloseX, {0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {TextColor3 = Theme.Accent})
+end)
+
+--================ APPLY DESIGN FUNKTION (JETZT MIT FORCE FIX) =================--
+local function ApplyButtonDesign(style)
+	-- Reset alles
+	OpenButton.Visible = true
+	SwipeZone.Visible = false
+	Glow.Visible = false
+	Stroke.Enabled = true
+	OpenButton.BackgroundTransparency = 0
+
+	-- Styles anwenden
+	if style == "Standard Neon" then
+		OpenButton.Text = "Z"
+		OpenButton.BackgroundColor3 = Theme.Main
+		Glow.Visible = true
+		Corner.CornerRadius = UDim.new(0, 6)
+		OpenButton.Size = UDim2.fromOffset(40, 40)
+	elseif style == "Minimalist O" then
+		OpenButton.Text = "O"
+		OpenButton.BackgroundTransparency = 1 
+		OpenButton.BackgroundColor3 = Color3.fromRGB(0,0,0) 
+		Corner.CornerRadius = UDim.new(1, 0)
+		OpenButton.Size = UDim2.fromOffset(30, 30)
+	elseif style == "Swipe Mode" then
+		OpenButton.Visible = false 
+		SwipeZone.Visible = true
+	end
+
+	-- DER FIX: Sofortiges Umschalten der Sichtbarkeit des X
+	if CloseX then
+		if style == "Swipe Mode" and isOpen then
+			CloseX.Visible = true
+		else
+			CloseX.Visible = false
+		end
+	end
 end
 
 
@@ -392,6 +603,16 @@ task.spawn(function()
 end)
 
 
+
+-- Hover Effekt für das X
+CloseX.MouseEnter:Connect(function()
+	Tween(CloseX, {0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {TextColor3 = Theme.Secondary})
+end)
+CloseX.MouseLeave:Connect(function()
+	Tween(CloseX, {0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {TextColor3 = Theme.Accent})
+end)
+
+
 --================ SUBTITLE "By Zidiu1" =================--
 local SubTitle = Instance.new("TextLabel", TitleBar)
 SubTitle.Size = UDim2.new(1,0,0,20) 
@@ -476,27 +697,50 @@ Pages.BackgroundTransparency = 1
 --================ OPEN / CLOSE ANIMATION =================--
 Main.Size = UDim2.fromScale(0.5,0.8)
 
+--================ OPEN / CLOSE ANIMATION (FIXED) =================--
 OpenUI = function()
+	isOpen = true 
 	Main.Visible = true
 	local targetSize = SavedWindowSize or DEFAULT_SIZE
-	Main.Size = targetSize - UDim2.fromOffset(40, 40)
-	Main.BackgroundTransparency = currentTransparency
+
+	-- X-Logik beim Öffnen
+	if CloseX then
+		CloseX.Visible = (SwipeZone.Visible == true)
+	end
+
+	-- Falls wir im Swipe-Modus sind, Button immer verstecken
+	if SwipeZone.Visible then
+		OpenButton.Visible = false
+	end
+
+	-- Startpunkt für Animation
+	Main.Size = UDim2.new(targetSize.X.Scale * 0.9, targetSize.X.Offset, targetSize.Y.Scale * 0.9, targetSize.Y.Offset)
+	Main.BackgroundTransparency = 1
+
 	Tween(Main, {0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out}, {
 		Size = targetSize,
 		BackgroundTransparency = currentTransparency
 	})
 end
 
-
-
 CloseUI = function()
+	isOpen = false
 	local targetSize = SavedWindowSize or DEFAULT_SIZE
+
 	Tween(Main, {0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In}, {
-		Size = targetSize - UDim2.fromOffset(40, 40),
+		Size = UDim2.new(targetSize.X.Scale * 0.9, targetSize.X.Offset, targetSize.Y.Scale * 0.9, targetSize.Y.Offset),
 		BackgroundTransparency = 1
 	})
+
 	task.delay(0.25, function()
-		Main.Visible = false
+		if not isOpen then
+			Main.Visible = false
+			if CloseX then CloseX.Visible = false end
+
+			if SwipeZone.Visible == false then
+				OpenButton.Visible = true
+			end
+		end
 	end)
 end
 
@@ -576,7 +820,7 @@ function Library:CreateTab(name)
 	--================ ELEMENT FUNCTIONS =================--
 
 	-- BUTTON
-	function Elements:Button(text, callback)
+	function Elements:Button(text, callback, tooltip, duration)
 		orderCounter += 1
 
 		-- Button UI
@@ -681,11 +925,12 @@ function Library:CreateTab(name)
 			b:Destroy()
 		end
 
+		Library:AddTooltip(b, tooltip, duration)
 		return Button
 	end
 
 	-- TOGGLE
-	function Elements:Toggle(text, default, callback)
+	function Elements:Toggle(text, default, callback, tooltip, duration)
 		orderCounter += 1
 
 		-- UI
@@ -809,6 +1054,7 @@ function Library:CreateTab(name)
 			pcall(callback, Toggle.state)
 		end
 
+		Library:AddTooltip(button, tooltip, duration)
 		return Toggle
 	end
 
@@ -1378,7 +1624,7 @@ function Library:CreateTab(name)
 	end
 
 	-- SLIDER
-	function Elements:Slider(label, min, max, default, callback, precision)
+	function Elements:Slider(label, min, max, default, callback, precision, tooltip, duration)
 		precision = precision or 0
 		orderCounter += 1
 
@@ -1547,7 +1793,154 @@ function Library:CreateTab(name)
 			pcall(callback, default)
 		end
 
+		Library:AddTooltip(Container, tooltip, duration)
 		return Slider
+	end
+
+	-- DUAL SLIDER (MIN & MAX) + TEXT-INPUT
+	function Elements:DualSlider(label, min, max, defaultMin, defaultMax, callback, tooltip, duration)
+		orderCounter += 1
+
+		-- Container
+		local Container = Instance.new("Frame", Page)
+		Container.LayoutOrder = orderCounter
+		Container.Size = UDim2.new(1, 0, 0, 70)
+		Container.BackgroundTransparency = 1
+
+		-- Label (Titel)
+		local TextLabel = Instance.new("TextLabel", Container)
+		TextLabel.Size = UDim2.new(1, -110, 0, 20)
+		TextLabel.Position = UDim2.new(0, 0, 0, 5)
+		TextLabel.BackgroundTransparency = 1
+		TextLabel.Font = Theme.Font
+		TextLabel.TextSize = 15
+		TextLabel.TextColor3 = Theme.Text
+		TextLabel.Text = label:upper()
+		TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+		-- Hilfsfunktion für Input-Felder
+		local function createInput(pos, val)
+			local box = Instance.new("TextBox", Container)
+			box.Size = UDim2.new(0, 45, 0, 22)
+			box.Position = pos
+			box.BackgroundColor3 = Theme.Button
+			box.TextColor3 = Theme.Accent
+			box.Font = Theme.Font
+			box.TextSize = 13
+			box.Text = tostring(val)
+			Instance.new("UICorner", box).CornerRadius = UDim.new(0, 4)
+			local s = Instance.new("UIStroke", box)
+			s.Color = Theme.Accent
+			s.Thickness = 1
+			s.Transparency = 0.7
+			return box
+		end
+
+		local inputMin = createInput(UDim2.new(1, -105, 0, 4), defaultMin)
+		local inputMax = createInput(UDim2.new(1, -55, 0, 4), defaultMax)
+
+		-- Schiene
+		local SliderFrame = Instance.new("Frame", Container)
+		SliderFrame.Size = UDim2.new(1, -20, 0, 6)
+		SliderFrame.Position = UDim2.new(0, 10, 0, 45)
+		SliderFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+		SliderFrame.BorderSizePixel = 0
+		Instance.new("UICorner", SliderFrame)
+
+		local Fill = Instance.new("Frame", SliderFrame)
+		Fill.BackgroundColor3 = Theme.Accent
+		Fill.BorderSizePixel = 0
+		Instance.new("UICorner", Fill)
+
+		-- Buttons
+		local function createKnob()
+			local btn = Instance.new("TextButton", SliderFrame)
+			btn.Size = UDim2.new(0, 16, 0, 16)
+			btn.AnchorPoint = Vector2.new(0.5, 0.5)
+			btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			btn.Text = ""
+			Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
+			local st = Instance.new("UIStroke", btn)
+			st.Color = Theme.Accent
+			st.Thickness = 2
+			return btn
+		end
+
+		local btnMin = createKnob()
+		local btnMax = createKnob()
+
+		local DualSlider = {
+			minVal = defaultMin,
+			maxVal = defaultMax
+		}
+
+		local function updateUI(skipInput)
+			local relMin = (DualSlider.minVal - min) / (max - min)
+			local relMax = (DualSlider.maxVal - min) / (max - min)
+
+			btnMin.Position = UDim2.fromScale(relMin, 0.5)
+			btnMax.Position = UDim2.fromScale(relMax, 0.5)
+			Fill.Position = UDim2.fromScale(relMin, 0)
+			Fill.Size = UDim2.fromScale(relMax - relMin, 1)
+
+			if not skipInput then
+				inputMin.Text = tostring(DualSlider.minVal)
+				inputMax.Text = tostring(DualSlider.maxVal)
+			end
+		end
+
+		-- Slider Dragging
+		local function setupDrag(button, isMin)
+			local dragging = false
+			button.InputBegan:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+			end)
+			game:GetService("UserInputService").InputChanged:Connect(function(input)
+				if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+					local posX = math.clamp(input.Position.X - SliderFrame.AbsolutePosition.X, 0, SliderFrame.AbsoluteSize.X)
+					local rawVal = math.floor(min + (posX / SliderFrame.AbsoluteSize.X) * (max - min))
+
+					if isMin then
+						DualSlider.minVal = math.clamp(rawVal, min, DualSlider.maxVal - 1)
+					else
+						DualSlider.maxVal = math.clamp(rawVal, DualSlider.minVal + 1, max)
+					end
+					updateUI()
+					if callback then pcall(callback, DualSlider.minVal, DualSlider.maxVal) end
+				end
+			end)
+			game:GetService("UserInputService").InputEnded:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+			end)
+		end
+
+		setupDrag(btnMin, true)
+		setupDrag(btnMax, false)
+
+		-- Text-Input Logik
+		local function handleInput(box, isMin)
+			box.FocusLost:Connect(function()
+				local num = tonumber(box.Text)
+				if num then
+					if isMin then
+						DualSlider.minVal = math.clamp(math.floor(num), min, DualSlider.maxVal - 1)
+					else
+						DualSlider.maxVal = math.clamp(math.floor(num), DualSlider.minVal + 1, max)
+					end
+				end
+				updateUI()
+				if callback then pcall(callback, DualSlider.minVal, DualSlider.maxVal) end
+			end)
+		end
+
+		handleInput(inputMin, true)
+		handleInput(inputMax, false)
+
+		-- Tooltip
+		Library:AddTooltip(Container, tooltip, duration)
+
+		updateUI()
+		return DualSlider
 	end
 
 	-- LABEL
@@ -1675,6 +2068,210 @@ function Library:CreateTab(name)
 		return Keybind
 	end
 
+	-- COLLAPSIBLE SECTION (WITH 1PX DYNAMIC BORDER)
+	function Elements:Section(title, defaultOpened)
+		orderCounter += 1
+		local opened = (defaultOpened ~= nil) and defaultOpened or true
+
+		-- Haupt Container
+		local sectionContainer = Instance.new("Frame", Page)
+		sectionContainer.LayoutOrder = orderCounter
+		sectionContainer.Size = UDim2.new(1, 0, 0, 40)
+		sectionContainer.BackgroundTransparency = 1
+		sectionContainer.ClipsDescendants = true
+
+		-- Header Button
+		local header = Instance.new("TextButton", sectionContainer)
+		header.Size = UDim2.new(1, -2, 0, 33)
+		header.Position = UDim2.new(0,1,0,1)
+		header.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+		header.BackgroundTransparency = 0.2
+		header.Text = ""
+		header.AutoButtonColor = false
+		Instance.new("UICorner", header).CornerRadius = UDim.new(0, 6)
+
+		-- 2PX DYNAMISCHER RAHMEN
+		local stroke = Instance.new("UIStroke", header)
+		stroke.Color = Theme.Accent
+		stroke.Thickness = 1 -- 2px wie gewünscht
+		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		stroke.Transparency = 0.4
+
+		local sectionTitle = Instance.new("TextLabel", header)
+		sectionTitle.Size = UDim2.new(1, -40, 1, 0)
+		sectionTitle.Position = UDim2.new(0, 12, 0, 0)
+		sectionTitle.BackgroundTransparency = 1
+		sectionTitle.Text = "<b>" .. title:upper() .. "</b>"
+		sectionTitle.Font = Theme.Font
+		sectionTitle.TextSize = 14
+		sectionTitle.TextColor3 = Theme.Accent
+		sectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+		sectionTitle.RichText = true
+
+		local arrow = Instance.new("TextLabel", header)
+		arrow.Size = UDim2.new(0, 35, 1, 0)
+		arrow.Position = UDim2.new(1, -35, 0, 0)
+		arrow.BackgroundTransparency = 1
+		arrow.Text = opened and "▼" or "▲"
+		arrow.Font = Theme.Font
+		arrow.TextSize = 12
+		arrow.TextColor3 = Theme.Accent
+
+		-- Content Holder
+		local content = Instance.new("Frame", sectionContainer)
+		content.Position = UDim2.new(0, 5, 0, 40)
+		content.Size = UDim2.new(1, -10, 0, 0)
+		content.BackgroundTransparency = 1
+
+		local contentLayout = Instance.new("UIListLayout", content)
+		contentLayout.Padding = UDim.new(0, 8)
+		contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+		local SectionElements = {}
+
+		-- AUTOMATISCHE FARB-ANIMATION (Titel, Pfeil & 2px Rahmen)
+		task.spawn(function()
+			while sectionContainer.Parent do
+				-- Phase 1: Zu Secondary
+				Tween(sectionTitle, {2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut}, {TextColor3 = Theme.Secondary})
+				Tween(arrow, {2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut}, {TextColor3 = Theme.Secondary})
+				Tween(stroke, {2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut}, {Color = Theme.Secondary})
+				task.wait(2)
+				-- Phase 2: Zurück zu Accent
+				Tween(sectionTitle, {2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut}, {TextColor3 = Theme.Accent})
+				Tween(arrow, {2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut}, {TextColor3 = Theme.Accent})
+				Tween(stroke, {2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut}, {Color = Theme.Accent})
+				task.wait(2)
+			end
+		end)
+
+		local function updateSectionHeight()
+			if opened then
+				local targetHeight = contentLayout.AbsoluteContentSize.Y + 45
+				Tween(sectionContainer, {0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out}, {Size = UDim2.new(1, 0, 0, targetHeight)})
+				arrow.Text = "▼"
+			else
+				Tween(sectionContainer, {0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out}, {Size = UDim2.new(1, 0, 0, 40)})
+				arrow.Text = "▲"
+			end
+		end
+
+		header.MouseButton1Click:Connect(function()
+			opened = not opened
+			updateSectionHeight()
+		end)
+
+		contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+			if opened then updateSectionHeight() end
+		end)
+
+		-- Verknüpfung der Elemente für Nested UI
+		for name, func in pairs(Elements) do
+			if name ~= "Section" then
+				SectionElements[name] = function(self, ...)
+					local oldPage = Page
+					Page = content
+					local element = func(Elements, ...)
+					Page = oldPage
+					return element
+				end
+			end
+		end
+
+		task.delay(0.1, updateSectionHeight)
+		return SectionElements
+	end
+
+	-- TOOLTIP
+	function Library:AddTooltip(parent, infoText, duration)
+		if not infoText or infoText == "" then return end
+
+		local showTime = duration or 5
+
+		-- Der "?" Button
+		local helpBtn = Instance.new("TextButton", parent)
+		helpBtn.Size = UDim2.new(0, 18, 0, 18)
+		helpBtn.Position = UDim2.new(1, -25, 0, 5)
+		helpBtn.BackgroundColor3 = Theme.Button
+		helpBtn.Text = "?"
+		helpBtn.Font = Theme.Font
+		helpBtn.TextSize = 12
+		helpBtn.TextColor3 = Theme.Accent
+		helpBtn.ZIndex = 10
+		Instance.new("UICorner", helpBtn).CornerRadius = UDim.new(1, 0)
+
+		local stroke = Instance.new("UIStroke", helpBtn)
+		stroke.Color = Theme.Accent
+		stroke.Thickness = 1
+		stroke.Transparency = 0.5
+
+		-- Das Info-Label (Nachricht)
+		local infoLabel = Instance.new("TextLabel", parent)
+		infoLabel.Size = UDim2.new(1, -10, 0, 35)
+		infoLabel.Position = UDim2.new(0, 5, 0, 5)
+		infoLabel.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+		infoLabel.TextColor3 = Color3.new(1,1,1)
+		infoLabel.Text = infoText
+		infoLabel.Font = Theme.Font
+		infoLabel.TextSize = 13
+		infoLabel.ZIndex = 20 -- Über allem anderen
+		infoLabel.Visible = false
+		infoLabel.ClipsDescendants = true -- Wichtig für die Ecken des Balkens
+		Instance.new("UICorner", infoLabel)
+
+		-- Der Fortschrittsbalken (Direkt im Info-Label)
+		local progressBar = Instance.new("Frame", infoLabel)
+		progressBar.ZIndex = 21 -- Über dem TextLabel-Hintergrund
+		progressBar.Size = UDim2.new(1, 0, 0, 3) -- 3px hoch
+		progressBar.Position = UDim2.new(0, 0, 1, -3) -- Ganz unten bündig
+		progressBar.BackgroundColor3 = Theme.Accent
+		progressBar.BorderSizePixel = 0
+
+		-- Pulsieren Logik (Help Button)
+		task.spawn(function()
+			while helpBtn.Parent do
+				Tween(helpBtn, {2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut}, {TextColor3 = Theme.Secondary})
+				Tween(stroke, {2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut}, {Color = Theme.Secondary})
+				task.wait(2)
+				Tween(helpBtn, {2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut}, {TextColor3 = Theme.Accent})
+				Tween(stroke, {2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut}, {Color = Theme.Accent})
+				task.wait(2)
+			end
+		end)
+
+		local showing = false
+		helpBtn.MouseButton1Click:Connect(function()
+			if showing then return end
+			showing = true
+
+			-- Reset & Anzeigen
+			infoLabel.Visible = true
+			infoLabel.BackgroundTransparency = 1
+			infoLabel.TextTransparency = 1
+			progressBar.BackgroundTransparency = 1
+			progressBar.Size = UDim2.new(1, 0, 0, 3) 
+
+			-- Einblenden Animation
+			Tween(infoLabel, {0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundTransparency = 0, TextTransparency = 0})
+			Tween(progressBar, {0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundTransparency = 0})
+
+			-- Balken läuft ab
+			Tween(progressBar, {showTime, Enum.EasingStyle.Linear, Enum.EasingDirection.In}, {
+				Size = UDim2.new(0, 0, 0, 3),
+				BackgroundColor3 = Theme.Secondary
+			})
+
+			task.wait(showTime)
+
+			-- Ausblenden Animation
+			Tween(infoLabel, {0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundTransparency = 1, TextTransparency = 1})
+			Tween(progressBar, {0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundTransparency = 1})
+
+			task.wait(0.3)
+			infoLabel.Visible = false
+			showing = false
+		end)
+	end
 
 
 
@@ -1820,36 +2417,6 @@ end
 --================ OPTIONAL SETTINGS TAB DEFINIEREN =================-- 
 local function CreateOptionalSettingsTab()
 	local SettingsTab = Library:CreateTab("Settings")
-	
-	local HttpService = game:GetService("HttpService")
-	local configFileName = "CyberpunkUI_Config.json"
-
-	local function SaveConfig()
-		local config = {
-			Transparency = currentTransparency,
-			BackgroundColor = {r=Main.BackgroundColor3.R, g=Main.BackgroundColor3.G, b=Main.BackgroundColor3.B},
-			ResizeEnabled = ResizeHandle.Visible,
-			DragEnabled = dragEnabled,
-			GUIKey = guiKey,
-			GUISize = {x=Main.Size.X.Scale, y=Main.Size.Y.Scale, offsetX=Main.Size.X.Offset, offsetY=Main.Size.Y.Offset}
-		}
-		pcall(function() writefile(configFileName, HttpService:JSONEncode(config)) end)
-	end
-
-	local function LoadConfig()
-		if not pcall(function() return readfile(configFileName) end) then return end
-		local data = readfile(configFileName)
-		local success, config = pcall(function() return HttpService:JSONDecode(data) end)
-		if not success then return end
-
-		if config.Transparency then currentTransparency = config.Transparency SetMainTransparency(config.Transparency) end
-		if config.BackgroundColor then local c=config.BackgroundColor SetMainBackgroundColor(Color3.new(c.r,c.g,c.b)) end
-		if config.ResizeEnabled ~= nil then ResizeHandle.Visible = config.ResizeEnabled end
-		if config.DragEnabled ~= nil then dragEnabled = config.DragEnabled end
-		if config.GUIKey then guiKey = config.GUIKey end
-		if config.GUISize then local s=config.GUISize Main.Size = UDim2.new(s.x,s.offsetX,s.y,s.offsetY) end
-	end
-
 
 	-- Slider: GUI Transparency
 	SettingsTab:Slider("GUI Transparency", 0, 1, currentTransparency, function(val)
@@ -1903,23 +2470,54 @@ local function CreateOptionalSettingsTab()
 	end)
 
 	SettingsTab:Toggle("Drag Open Button", false, function(state)
-		dragEnabled = state
+		dragEnabled = state 
+	end)
 
-		if not state then
-			dragging = false
-			dragStartPos = nil
+
+	local designDropdown = SettingsTab:Dropdown("Button Design", {"Standard Neon", "Minimalist O", "Swipe Mode"}, function(selected)
+		ApplyButtonDesign(selected)
+
+		if selected == "Swipe Mode" then
+			-- 1. Nachricht senden
+			Library.Notify(
+				"SWIPE MODE ENABLED", 
+				"The toggle button is now invisible. Swipe from the left edge of your screen to the right to open the menu.", 
+				"Success", 
+				7
+			)
+
+			task.spawn(function()
+				for i = 1, 2 do
+					-- Aufleuchten (Rot)
+					Tween(SwipeIndicator, {0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {
+						BackgroundTransparency = 0.3,
+						BackgroundColor3 = Color3.fromRGB(255, 0, 0),
+						Size = UDim2.new(0, 15, 1, 0) -- Wird kurz breiter, damit man es sieht
+					})
+					task.wait(1)
+
+					-- Verblassen
+					Tween(SwipeIndicator, {0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {
+						BackgroundTransparency = 1,
+						Size = UDim2.new(0, 2, 1, 0)
+					})
+					task.wait(0.1)
+				end
+				SwipeIndicator.BackgroundColor3 = Theme.Accent
+			end)
 		end
 	end)
-	
-	local saveBtn = SettingsTab:Button("Save Config", function()
-		SaveConfig()
-		Library.Notify("Config","Configuration saved!","Success")
-	end)
+	designDropdown.refreshOnUpdate = true
 
-	local loadBtn = SettingsTab:Button("Load Config", function()
-		LoadConfig()
-		Library.Notify("Config","Configuration loaded!","Success")
+
+--[[
+	-- Save Settings
+	SettingsTab:Button("Save Settings", function()
+		SaveGUISettings()
+		Library.Notify("Settings", "Settings saved!", "Success", 2)
 	end)
+]]
+
 
 
 
@@ -1938,19 +2536,6 @@ task.spawn(function()
 		CreateOptionalSettingsTab()
 	end
 end)
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
