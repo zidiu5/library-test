@@ -1,5 +1,5 @@
 --// CYBERPUNK ULTIMATE UI LIBRARY
---// VERSION 3 
+--// VERSION 3.1
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -498,18 +498,48 @@ end)
 
 
 --================ SETTINGS FUNCTIONS =================--
-
--- Background colors
-local BgColors = {
-	Atlantic = Color3.fromRGB(10,10,18),
-	Red = Color3.fromRGB(150,20,20),
-	Purple = Color3.fromRGB(60,0,60),
-	Cyan = Color3.fromRGB(0,100,150)
+local CSS_Colors = {
+	Color3.fromHex("#ee7752"), 
+	Color3.fromHex("#e73c7e"), 
+	Color3.fromHex("#23a6d5"), 
+	Color3.fromHex("#23d5ab")  
 }
 
--- Change background color
-local function SetMainBackgroundColor(color)
-	Tween(Main, {0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out}, {BackgroundColor3 = color})
+local gradientConnection = nil
+
+local function SetMainBackgroundColor(mode)
+	gradientConnection = false -- Stoppt laufende Animationen
+	task.wait(0.05)
+
+	if mode == "Animated" then
+		gradientConnection = true
+		task.spawn(function()
+			local i = 1
+			while gradientConnection do
+				local nextI = i + 1
+				if nextI > #CSS_Colors then nextI = 1 end
+
+				local startColor = CSS_Colors[i]
+				local targetColor = CSS_Colors[nextI]
+
+				local duration = 4 
+				local steps = duration * 30 -- 30 FPS
+
+				for step = 0, steps do
+					if not gradientConnection then break end
+					local alpha = step / steps
+					-- Sanfter Übergang (Lerp)
+					Main.BackgroundColor3 = startColor:Lerp(targetColor, alpha)
+					task.wait(1/30)
+				end
+
+				i = nextI
+			end
+		end)
+	else
+		-- Falls du eine statische Farbe wählst (z.B. aus BgColors)
+		Tween(Main, {0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out}, {BackgroundColor3 = mode})
+	end
 end
 
 -- Change transparency
@@ -678,6 +708,7 @@ TabBar.Position = UDim2.fromOffset(10,65)
 TabBar.Size = UDim2.new(0,150,1,-75)
 TabBar.BackgroundTransparency = 1
 TabBar.ScrollBarThickness = 4
+TabBar.BorderSizePixel = 0
 TabBar.ScrollBarImageColor3 = Theme.Accent
 local DEFAULT_SIZE = UDim2.fromScale(0.5, 0.8)
 
@@ -776,6 +807,7 @@ function Library:CreateTab(name)
 	Page.Size = UDim2.new(1,0,1,0)
 	Page.BackgroundTransparency = 1
 	Page.ScrollBarThickness = 4
+	Page.BorderSizePixel = 0
 	Page.ScrollBarImageColor3 = Theme.Accent
 	Page.Visible = false
 
@@ -2435,10 +2467,16 @@ local function CreateOptionalSettingsTab()
 	end)
 
 	-- Dropdown: Background Color
-	local bgDropdown = SettingsTab:Dropdown("Background Color", {"Atlantic","Red","Purple","Cyan"}, function(opt)
-		SetMainBackgroundColor(BgColors[opt])
+	SettingsTab:Dropdown("UI Theme", {"Atlantic", "Red", "Rainbow"}, function(selected)
+		if selected == "Rainbow" then
+			SetMainBackgroundColor("Animated")
+		else
+			-- Nutzt die statischen Farben von vorhin
+			local statics = {Atlantic = Color3.fromRGB(10,10,18), Red = Color3.fromRGB(150,20,20)}
+			SetMainBackgroundColor(statics[selected])
+		end
 	end)
-	bgDropdown.refreshOnUpdate = true
+
 
 	-- Toggle: Enable Resize
 	local resizeToggle = SettingsTab:Toggle("Enable Resize", false, function(on)
@@ -2536,7 +2574,4 @@ task.spawn(function()
 		CreateOptionalSettingsTab()
 	end
 end)
-
-
-
 return Library
