@@ -23,10 +23,10 @@ MobTab:Button("Kill All Mobs", function()
     local Remote = RemotesFolder.mobdodamage
     for _, mob in ipairs(Monsters:GetChildren()) do
         if mob:IsA("Model") then
-            Remote:FireServer({{{mob, 100000}}})
+            Remote:FireServer({{{mob, 10000000}}})
         end
     end
-end, "Instantly eliminates all monsters currently on the map.")
+end, "Kills all monsters currently on the map.")
 
 -- Heal All Mobs
 MobTab:Button("Heal All Mobs", function()
@@ -37,7 +37,7 @@ MobTab:Button("Heal All Mobs", function()
             Remote:FireServer({{{mob, -10000}}})
         end
     end
-end)
+end, "Gives monsters 10.000 extra Health.")
 
 -- Make All Mobs Invincible
 MobTab:Button("Invincible Mobs", function()
@@ -45,36 +45,39 @@ MobTab:Button("Invincible Mobs", function()
     local Remote = RemotesFolder.mobdodamage
     for _, mob in ipairs(Monsters:GetChildren()) do
         if mob:IsA("Model") then
-            Remote:FireServer({{{mob, -10000000000000000000000000000000000000000000000000000000000}}})
+            Remote:FireServer({{{mob, -10000000000000000000000000000000000000000000000000000000}}})
         end
     end
-end)
+end, "Makes monsters UNKILLABLE.")
 
 --================== SELECTIVE MOB KILL ===================
 local MonsterTypes = {"Robot", "RogueBot", "Skeleton", "Tank", "Zombie"}
-local SelectedTypes = {} -- Dictionary für Multiselect
+local SelectedTypes = {}
 
 -- Multi-Select Dropdown
-local MobDropdown = MobTab:Dropdown("Select Mob Types", MonsterTypes, function(opt, state, selection)
-    SelectedTypes = selection -- speichert die aktuelle Auswahl
-end, true) -- true = Multiselect
+local MobDropdown = MobTab:Dropdown(
+    "Select Mob Types",
+    MonsterTypes,
+    function(opt, state, selection)
+        SelectedTypes = selection
+    end,
+    true,
+)
 
 MobDropdown.refreshOnUpdate = true
 
--- Button: Kill Selected Mobs
+-- Kill Selected Mobs
 MobTab:Button("Kill Selected Mobs", function()
     local Monsters = workspaceThings.Monsters
     local Remote = RemotesFolder.mobdodamage
     for _, mob in ipairs(Monsters:GetChildren()) do
         if mob:IsA("Model") and SelectedTypes[mob.Name] then
-            Remote:FireServer({{{mob, 100000}}})
+            Remote:FireServer({{{mob, 1000000}}})
         end
     end
-end)
+end, "Instantly kills the selected monster types.")
 
-
-
--- Auto Kill Toggle with Radius Slider
+--================ AUTO KILL ===================
 local AutoKillEnabled = false
 local KillRadius = 50
 MobTab:Slider("Brim Radius Kill", 10, 200, KillRadius, function(value)
@@ -87,24 +90,21 @@ MobTab:Toggle("Auto-Kill Mobs", false, function(state)
         task.spawn(function()
             local Monsters = workspaceThings.Monsters
             local Remote = RemotesFolder.mobdodamage
-
             while AutoKillEnabled do
                 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
                 local HRP = Character:WaitForChild("HumanoidRootPart")
-
                 for _, mob in ipairs(Monsters:GetChildren()) do
                     if mob:IsA("Model") and mob:FindFirstChild("HumanoidRootPart") then
                         if (HRP.Position - mob.HumanoidRootPart.Position).Magnitude <= KillRadius then
-                            Remote:FireServer({{{mob, 10000}}})
+                            Remote:FireServer({{{mob, 1000000}}})
                         end
                     end
                 end
-
-                task.wait(0.5)
+                task.wait(0.1)
             end
         end)
     end
-end)
+end, "Kills monsters within the selected radius.")
 
 --================ CIRCLE VISUALIZER ===================
 local RunService = game:GetService("RunService")
@@ -113,7 +113,6 @@ local SEGMENTS = 60
 local CIRCLE_PART_SIZE = 2
 local CircleParts = {}
 
--- Create parts
 for i = 1, SEGMENTS do
     local part = Instance.new("Part")
     part.Size = Vector3.new(CIRCLE_PART_SIZE, CIRCLE_PART_SIZE, CIRCLE_PART_SIZE)
@@ -126,12 +125,10 @@ for i = 1, SEGMENTS do
     table.insert(CircleParts, part)
 end
 
--- Add Circle Toggle to GUI
 MobTab:Toggle("Show Kill Radius", false, function(state)
     circleEnabled = state
-end)
+end, "Displays a visual circle around your character showing the auto-kill range.")
 
--- Update loop
 RunService.RenderStepped:Connect(function()
     local Character = LocalPlayer.Character
     local HRP = Character and Character:FindFirstChild("HumanoidRootPart")
@@ -139,10 +136,11 @@ RunService.RenderStepped:Connect(function()
         for i, part in ipairs(CircleParts) do
             if circleEnabled then
                 local angle = (i / SEGMENTS) * math.pi * 2
-                local x = HRP.Position.X + math.cos(angle) * KillRadius
-                local z = HRP.Position.Z + math.sin(angle) * KillRadius
-                local y = HRP.Position.Y + 1
-                part.Position = Vector3.new(x, y, z)
+                part.Position = Vector3.new(
+                    HRP.Position.X + math.cos(angle) * KillRadius,
+                    HRP.Position.Y + 1,
+                    HRP.Position.Z + math.sin(angle) * KillRadius
+                )
                 part.Transparency = 0.5
             else
                 part.Transparency = 1
@@ -154,13 +152,18 @@ end)
 --================== BUILD TAB ===================
 local BuildTab = Library:CreateTab("Build")
 
--- Dropdown für Materialien (fest definiert)
 local Materials = {"Wood", "Brick", "Metal", "Obsidian", "Firebrick"}
 local SelectedBlock = Materials[1]
 
-BuildTab:Dropdown("Select Build Block", Materials, function(opt)
-    SelectedBlock = opt
-end)
+BuildTab:Dropdown(
+    "Select Build Block",
+    Materials,
+    function(opt)
+        SelectedBlock = opt
+    end,
+    false,
+    "Choose which material is used for all building structures."
+)
 
 -- Hilfsfunktionen
 local STEP = 4
@@ -181,6 +184,9 @@ local function range(a, b)
     end
     return t
 end
+
+
+
 
 --================ BUILD BUTTONS =================--
 
@@ -226,7 +232,7 @@ BuildTab:Button("Corner Version 1", function()
     end
 
     diag(T[1],T[3]); diag(T[2],T[4])
-end)
+end, "Builds a basic frame structure at the corners.")
 
 -- Corner Version 2
 BuildTab:Button("Corner Version 2", function()
@@ -264,7 +270,7 @@ BuildTab:Button("Corner Version 2", function()
             connect3D(C[i],C[j])
         end
     end
-end)
+end, "Builds a more complex 3D wireframe connecting all corners.")
 
 -- 4 Row Stairs
 BuildTab:Button("4-Row Stairs", function()
@@ -294,7 +300,7 @@ BuildTab:Button("4-Row Stairs", function()
     end
 
     stair("f"); stair("b"); stair("r"); stair("l")
-end)
+end, "Builds four; 5-block wide staircases facing all directions.")
 
 -- The Chain Tower
 BuildTab:Button("The Chain Tower", function()
@@ -357,7 +363,7 @@ BuildTab:Button("The Chain Tower", function()
             connect3D(pCorner, gCorner)
         end
     end
-end)
+end, "Builds a central 3x3 tower with a large platform and supports.")
 
 
 
@@ -421,7 +427,7 @@ BuildTab:Button("Low-Lag Stairs", function()
     buildStair("backward")
     buildStair("right")
     buildStair("left")
-end)
+end, "Same as 4-Row Stairs just less lag.")
 
 
 --================ THE FLYING CRYSTAL ===================
@@ -506,7 +512,7 @@ BuildTab:Button("The Flying Crystal", function()
     for _,c in ipairs(MapCorners) do
         connect3D(Vector3.new(c.X,TOP_Y,c.Z), centerTop)
     end
-end)
+end, "Builds a floating platform connected with geometric lines.")
 
 
 
@@ -593,7 +599,7 @@ BuildTab:Button("The Flying House", function()
         connect3D(middleCorners[i], topCenter)
         connect3D(Vector3.new(MapCorners[i].X,TOP_Y,MapCorners[i].Z), topCenter)
     end
-end)
+end, "Builds a multi-layered structure with various connection levels.")
 
 
 
@@ -607,7 +613,7 @@ BuildTab:Button("The Wall", function()
             place(Vector3.new(x, y, CornerA.Z))
         end
     end
-end)
+end, "Ugly Fat Wall at the front.")
 
 -- The Fly Screen
 BuildTab:Button("The Fly Screen", function()
@@ -622,7 +628,7 @@ BuildTab:Button("The Fly Screen", function()
             end
         end
     end
-end)
+end, "Ugly Fat Wall at the front Jr.")
 
 
 
@@ -667,7 +673,7 @@ PowersTab:Dropdown("Powers", PowerList, function(opt, state, all)
         unequip(opt)
     end
     LastSelection[opt] = state
-end, true)
+end, true, "Do you really need infos for this?")
 
 --================== MISC TAB ===================
 local MiscTab = Library:CreateTab("Misc")
@@ -690,11 +696,11 @@ MiscTab:Toggle("Heal All Players", false, function(state)
                         RemotesFolder.upgradefxserver:FireServer(unpack(args))
                     end
                 end
-                task.wait(1)
+                task.wait(0.1)
             end
         end)
     end
-end)
+end, "Heals all Players(Lags after Time)")
 
 -- Collect All Drops Button
 MiscTab:Button("Collect All Drops", function()
@@ -705,4 +711,4 @@ MiscTab:Button("Collect All Drops", function()
             Remote:FireServer({{drop.UID.Value}})
         end
     end
-end)
+end, "Collects all Drops. (Lvl 100 the Blue things lag)")
