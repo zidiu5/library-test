@@ -1,4 +1,4 @@
- -- Build and Survive By Big Games
+-- V 2.3
 --================ SETTINGS =================--
 _G.showOptionalSettings = true
 
@@ -10,7 +10,6 @@ local Library = loadstring(game:HttpGet(
 --================ SERVICES =================--
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local workspaceThings = workspace:WaitForChild("__THINGS")
 local RemotesFolder = workspaceThings:WaitForChild("__REMOTES")
@@ -24,10 +23,10 @@ MobTab:Button("Kill All Mobs", function()
     local Remote = RemotesFolder.mobdodamage
     for _, mob in ipairs(Monsters:GetChildren()) do
         if mob:IsA("Model") then
-            Remote:FireServer({{{mob, 10000000}}})
+            Remote:FireServer({{{mob, 100000}}})
         end
     end
-end, "Instantly eliminates all monsters on the map.")
+end, "Instantly eliminates all monsters currently on the map.")
 
 -- Heal All Mobs
 MobTab:Button("Heal All Mobs", function()
@@ -38,7 +37,7 @@ MobTab:Button("Heal All Mobs", function()
             Remote:FireServer({{{mob, -10000}}})
         end
     end
-end, "Gives Monsters 10.000 extra Health.")
+end)
 
 -- Make All Mobs Invincible
 MobTab:Button("Invincible Mobs", function()
@@ -49,16 +48,16 @@ MobTab:Button("Invincible Mobs", function()
             Remote:FireServer({{{mob, -10000000000000000000000000000000000000000000000000000000000}}})
         end
     end
-end, "Makes monsters invincible by giving them an extreme amount of health")
+end)
 
 --================== SELECTIVE MOB KILL ===================
 local MonsterTypes = {"Robot", "RogueBot", "Skeleton", "Tank", "Zombie"}
-local SelectedTypes = {} -- Dictionary for Multiselect
+local SelectedTypes = {} -- Dictionary für Multiselect
 
 -- Multi-Select Dropdown
 local MobDropdown = MobTab:Dropdown("Select Mob Types", MonsterTypes, function(opt, state, selection)
-    SelectedTypes = selection 
-end, true, "Choose specific monster types to be targeted by the 'Kill Selected' button.") 
+    SelectedTypes = selection -- speichert die aktuelle Auswahl
+end, true) -- true = Multiselect
 
 MobDropdown.refreshOnUpdate = true
 
@@ -68,17 +67,19 @@ MobTab:Button("Kill Selected Mobs", function()
     local Remote = RemotesFolder.mobdodamage
     for _, mob in ipairs(Monsters:GetChildren()) do
         if mob:IsA("Model") and SelectedTypes[mob.Name] then
-            Remote:FireServer({{{mob, 1000000}}})
+            Remote:FireServer({{{mob, 100000}}})
         end
     end
-end, "Only kills the monster types you have checked in the dropdown above.")
+end)
+
+
 
 -- Auto Kill Toggle with Radius Slider
 local AutoKillEnabled = false
 local KillRadius = 50
-MobTab:Slider("Brim Radius Kill", 10, 300, KillRadius, function(value)
+MobTab:Slider("Brim Radius Kill", 10, 200, KillRadius, function(value)
     KillRadius = value
-end, "Adjust the distance for the automatic kill aura.")
+end)
 
 MobTab:Toggle("Auto-Kill Mobs", false, function(state)
     AutoKillEnabled = state
@@ -94,17 +95,19 @@ MobTab:Toggle("Auto-Kill Mobs", false, function(state)
                 for _, mob in ipairs(Monsters:GetChildren()) do
                     if mob:IsA("Model") and mob:FindFirstChild("HumanoidRootPart") then
                         if (HRP.Position - mob.HumanoidRootPart.Position).Magnitude <= KillRadius then
-                            Remote:FireServer({{{mob, 1000000}}})
+                            Remote:FireServer({{{mob, 10000}}})
                         end
                     end
                 end
-                task.wait(0.1)
+
+                task.wait(0.5)
             end
         end)
     end
-end, "Automatically attacks any monster that enters your set radius.")
+end)
 
 --================ CIRCLE VISUALIZER ===================
+local RunService = game:GetService("RunService")
 local circleEnabled = false
 local SEGMENTS = 60
 local CIRCLE_PART_SIZE = 2
@@ -113,7 +116,7 @@ local CircleParts = {}
 -- Create parts
 for i = 1, SEGMENTS do
     local part = Instance.new("Part")
-    part.Size = Vector2.new(CIRCLE_PART_SIZE, CIRCLE_PART_SIZE, CIRCLE_PART_SIZE)
+    part.Size = Vector3.new(CIRCLE_PART_SIZE, CIRCLE_PART_SIZE, CIRCLE_PART_SIZE)
     part.Anchored = true
     part.CanCollide = false
     part.Material = Enum.Material.Neon
@@ -126,7 +129,7 @@ end
 -- Add Circle Toggle to GUI
 MobTab:Toggle("Show Kill Radius", false, function(state)
     circleEnabled = state
-end, "Displays a visual red ring around you to show the Auto-Kill range.")
+end)
 
 -- Update loop
 RunService.RenderStepped:Connect(function()
@@ -151,15 +154,15 @@ end)
 --================== BUILD TAB ===================
 local BuildTab = Library:CreateTab("Build")
 
--- Dropdown for Materials
+-- Dropdown für Materialien (fest definiert)
 local Materials = {"Wood", "Brick", "Metal", "Obsidian", "Firebrick"}
 local SelectedBlock = Materials[1]
 
 BuildTab:Dropdown("Select Build Block", Materials, function(opt)
     SelectedBlock = opt
-end, false, "Select the material type for your structures.")
+end)
 
--- Helper functions
+-- Hilfsfunktionen
 local STEP = 4
 local CornerA = Vector3.new(-252, -8, 52)
 local CornerB = Vector3.new(112, 72, 368)
@@ -223,7 +226,7 @@ BuildTab:Button("Corner Version 1", function()
     end
 
     diag(T[1],T[3]); diag(T[2],T[4])
-end, "Builds a basic frame structure at the corners.")
+end)
 
 -- Corner Version 2
 BuildTab:Button("Corner Version 2", function()
@@ -261,7 +264,7 @@ BuildTab:Button("Corner Version 2", function()
             connect3D(C[i],C[j])
         end
     end
-end, "Constructs a complex 3D wireframe connecting all corners.")
+end)
 
 -- 4 Row Stairs
 BuildTab:Button("4-Row Stairs", function()
@@ -291,7 +294,7 @@ BuildTab:Button("4-Row Stairs", function()
     end
 
     stair("f"); stair("b"); stair("r"); stair("l")
-end, "Creates four separate 5-block wide staircases facing all directions.")
+end)
 
 -- The Chain Tower
 BuildTab:Button("The Chain Tower", function()
@@ -302,6 +305,7 @@ BuildTab:Button("The Chain Tower", function()
     local CenterX = (minX + maxX) / 2
     local CenterZ = (minZ + maxZ) / 2
 
+    -- 3x3 Tower
     for y = minY, maxY, STEP do
         for x = -1, 1 do
             for z = -1, 1 do
@@ -310,6 +314,7 @@ BuildTab:Button("The Chain Tower", function()
         end
     end
 
+    -- 20x20 Platform
     local SIZE = 20
     local OFFSET = math.floor(SIZE / 2)
     local PlatformCorners = {}
@@ -352,26 +357,38 @@ BuildTab:Button("The Chain Tower", function()
             connect3D(pCorner, gCorner)
         end
     end
-end, "Constructs a central 3x3 tower with a large platform and supports (chains).")
+end)
+
+
+
 
 -- LOW-LAG STAIRS
 BuildTab:Button("Low-Lag Stairs", function()
     local Remote = workspace.__THINGS.__REMOTES.placeblock
-    local BlockType = SelectedBlock
+    local BlockType = SelectedBlock -- benutzt das Dropdown-Material
     local BlockPart = workspace.__THINGS.__BLOCKS[BlockType].Part
 
-    local HEIGHT_STEP = 1
-    local LENGTH_STEP = 2
-    local WIDTH = 3
-    local BLOCK_SPACING = 4
+    local HEIGHT_STEP = 1   -- jede Stufe hoch
+    local LENGTH_STEP = 2   -- jede Stufe vorwärts
+    local WIDTH = 3         -- 3 Blöcke breit
+    local BLOCK_SPACING = 4 -- Abstand zwischen Blöcken
+
+    local CornerA = Vector3.new(-252, -8, 52) -- Boden
+    local CornerB = Vector3.new(112, 72, 368) -- Oben
 
     local centerX = (CornerA.X + CornerB.X) / 2
     local centerZ = (CornerA.Z + CornerB.Z) / 2
 
-    local function stair_place(pos)
-        Remote:FireServer({CFrame.new(pos), BlockType, BlockPart})
+    -- BUILD FUNCTION 
+    local function place(pos)
+        Remote:FireServer({
+            CFrame.new(pos),
+            BlockType,
+            BlockPart
+        })
     end
 
+    -- BUILD STAIR FUNCTION 
     local function buildStair(direction)
         local currentY = CornerA.Y
         local steps = math.floor((CornerB.Y - CornerA.Y) / HEIGHT_STEP)
@@ -392,16 +409,22 @@ BuildTab:Button("Low-Lag Stairs", function()
                 else
                     posZ = centerZ - math.floor(WIDTH/2) * BLOCK_SPACING + w * BLOCK_SPACING
                 end
-                stair_place(Vector3.new(posX, currentY, posZ))
+                place(Vector3.new(posX, currentY, posZ))
             end
+
             currentY = currentY + HEIGHT_STEP
         end
     end
 
-    buildStair("forward"); buildStair("backward"); buildStair("right"); buildStair("left")
-end, "Builds staircases with wider spacing to reduce lag.")
+    -- BUILD ALL 4 DIRECTIONS 
+    buildStair("forward")
+    buildStair("backward")
+    buildStair("right")
+    buildStair("left")
+end)
 
--- THE FLYING CRYSTAL
+
+--================ THE FLYING CRYSTAL ===================
 BuildTab:Button("The Flying Crystal", function()
     local BLOCK_NAME = SelectedBlock
     local STEP = 4
@@ -411,24 +434,28 @@ BuildTab:Button("The Flying Crystal", function()
     local PlaceRemote = workspace.__THINGS.__REMOTES.placeblock
     local BlockPart = workspace.__THINGS.__BLOCKS[BLOCK_NAME].Part
 
+    local CornerA = Vector3.new(-252, -8, 52)
+    local CornerB = Vector3.new(112, 72, 368)
+
     local minX,maxX = math.min(CornerA.X,CornerB.X), math.max(CornerA.X,CornerB.X)
     local minY,maxY = math.min(CornerA.Y,CornerB.Y), math.max(CornerA.Y,CornerB.Y)
     local minZ,maxZ = math.min(CornerA.Z,CornerB.Z), math.max(CornerA.Z,CornerB.Z)
 
-    local function cryst_place(pos)
+    local function place(pos)
         PlaceRemote:FireServer({CFrame.new(pos), BLOCK_NAME, BlockPart})
     end
 
     local CenterX = (minX + maxX) / 2
     local CenterZ = (minZ + maxZ) / 2
 
+    -- Plattform
     local SIZE = 20
     local OFFSET = math.floor(SIZE / 2)
     local PlatformCorners = {}
 
     for x=-OFFSET,OFFSET-1 do
         for z=-OFFSET,OFFSET-1 do
-            cryst_place(Vector3.new(CenterX+x*STEP, PLATFORM_Y, CenterZ+z*STEP))
+            place(Vector3.new(CenterX+x*STEP, PLATFORM_Y, CenterZ+z*STEP))
         end
     end
 
@@ -439,6 +466,7 @@ BuildTab:Button("The Flying Crystal", function()
         Vector3.new(CenterX-OFFSET*STEP, PLATFORM_Y, CenterZ+(OFFSET-1)*STEP)
     }
 
+    -- Säulen
     local MapCorners = {
         Vector3.new(minX,minY,minZ),
         Vector3.new(maxX,minY,minZ),
@@ -448,18 +476,27 @@ BuildTab:Button("The Flying Crystal", function()
 
     for _,c in ipairs(MapCorners) do
         for y=minY,TOP_Y,STEP do
-            cryst_place(Vector3.new(c.X,y,c.Z))
+            place(Vector3.new(c.X,y,c.Z))
         end
     end
 
     local function connect3D(a,b)
-        local steps=math.max(math.abs((b.X-a.X)/STEP), math.abs((b.Y-a.Y)/STEP), math.abs((b.Z-a.Z)/STEP))
+        local steps=math.max(
+            math.abs((b.X-a.X)/STEP),
+            math.abs((b.Y-a.Y)/STEP),
+            math.abs((b.Z-a.Z)/STEP)
+        )
         for i=0,steps do
             local t=i/steps
-            cryst_place(Vector3.new(a.X+(b.X-a.X)*t, a.Y+(b.Y-a.Y)*t, a.Z+(b.Z-a.Z)*t))
+            place(Vector3.new(
+                a.X+(b.X-a.X)*t,
+                a.Y+(b.Y-a.Y)*t,
+                a.Z+(b.Z-a.Z)*t
+            ))
         end
     end
 
+    -- Ketten
     for i=1,4 do
         connect3D(Vector3.new(MapCorners[i].X,TOP_Y,MapCorners[i].Z), PlatformCorners[i])
     end
@@ -469,9 +506,11 @@ BuildTab:Button("The Flying Crystal", function()
     for _,c in ipairs(MapCorners) do
         connect3D(Vector3.new(c.X,TOP_Y,c.Z), centerTop)
     end
-end, "Builds a floating platform connected with geometric lines.")
+end)
 
--- THE FLYING HOUSE
+
+
+--================ THE FLYING HOUSE ===================
 BuildTab:Button("The Flying House", function()
     local BLOCK_NAME = SelectedBlock
     local STEP = 4
@@ -482,11 +521,14 @@ BuildTab:Button("The Flying House", function()
     local PlaceRemote = workspace.__THINGS.__REMOTES.placeblock
     local BlockPart = workspace.__THINGS.__BLOCKS[BLOCK_NAME].Part
 
+    local CornerA = Vector3.new(-252, -8, 52)
+    local CornerB = Vector3.new(112, 72, 368)
+
     local minX,maxX = math.min(CornerA.X,CornerB.X), math.max(CornerA.X,CornerB.X)
     local minY,maxY = math.min(CornerA.Y,CornerB.Y), math.max(CornerA.Y,CornerB.Y)
     local minZ,maxZ = math.min(CornerA.Z,CornerB.Z), math.max(CornerA.Z,CornerB.Z)
 
-    local function house_place(pos)
+    local function place(pos)
         PlaceRemote:FireServer({CFrame.new(pos), BLOCK_NAME, BlockPart})
     end
 
@@ -496,7 +538,7 @@ BuildTab:Button("The Flying House", function()
         local corners={}
         for x=-OFFSET,OFFSET-1 do
             for z=-OFFSET,OFFSET-1 do
-                house_place(Vector3.new(cx+x*STEP,y,cz+z*STEP))
+                place(Vector3.new(cx+x*STEP,y,cz+z*STEP))
             end
         end
         corners={
@@ -523,15 +565,23 @@ BuildTab:Button("The Flying House", function()
 
     for _,c in ipairs(MapCorners) do
         for y=minY,TOP_Y,STEP do
-            house_place(Vector3.new(c.X,y,c.Z))
+            place(Vector3.new(c.X,y,c.Z))
         end
     end
 
     local function connect3D(a,b)
-        local steps=math.max(math.abs((b.X-a.X)/STEP), math.abs((b.Y-a.Y)/STEP), math.abs((b.Z-a.Z)/STEP))
+        local steps=math.max(
+            math.abs((b.X-a.X)/STEP),
+            math.abs((b.Y-a.Y)/STEP),
+            math.abs((b.Z-a.Z)/STEP)
+        )
         for i=0,steps do
             local t=i/steps
-            house_place(Vector3.new(a.X+(b.X-a.X)*t, a.Y+(b.Y-a.Y)*t, a.Z+(b.Z-a.Z)*t))
+            place(Vector3.new(
+                a.X+(b.X-a.X)*t,
+                a.Y+(b.Y-a.Y)*t,
+                a.Z+(b.Z-a.Z)*t
+            ))
         end
     end
 
@@ -543,7 +593,10 @@ BuildTab:Button("The Flying House", function()
         connect3D(middleCorners[i], topCenter)
         connect3D(Vector3.new(MapCorners[i].X,TOP_Y,MapCorners[i].Z), topCenter)
     end
-end, "Builds a multi-layered structure with various connection levels.")
+end)
+
+
+
 
 -- The Wall
 BuildTab:Button("The Wall", function()
@@ -554,7 +607,7 @@ BuildTab:Button("The Wall", function()
             place(Vector3.new(x, y, CornerA.Z))
         end
     end
-end, "Builds a solid vertical wall in the front.")
+end)
 
 -- The Fly Screen
 BuildTab:Button("The Fly Screen", function()
@@ -569,7 +622,15 @@ BuildTab:Button("The Fly Screen", function()
             end
         end
     end
-end, "Builds a wall that skips every 2nd block).")
+end)
+
+
+
+
+
+
+
+
 
 --================== POWERS TAB ==================
 local PowersTab = Library:CreateTab("Powers")
@@ -587,40 +648,39 @@ for _, module in ipairs(UpgradesFolder:GetChildren()) do
 end
 table.sort(PowerList)
 
+-- State
 local LastSelection = {}
 
-local function equip(power) EquipRemote:FireServer({power}) end
-local function unequip(power) UnequipRemote:FireServer({power}) end
+local function equip(power)
+    EquipRemote:FireServer({power})
+end
+
+local function unequip(power)
+    UnequipRemote:FireServer({power})
+end
 
 -- Dropdown (Multiselect!)
 PowersTab:Dropdown("Powers", PowerList, function(opt, state, all)
-    if state then equip(opt) else unequip(opt) end
+    if state then
+        equip(opt)
+    else
+        unequip(opt)
+    end
     LastSelection[opt] = state
-end, true, "Select and equip multiple superpowers at once.")
+end, true)
 
 --================== MISC TAB ===================
 local MiscTab = Library:CreateTab("Misc")
 
 -- Heal All Players Toggle
 local HealAllEnabled = false
-
 MiscTab:Toggle("Heal All Players", false, function(state)
     HealAllEnabled = state
-    
     if state then
-        -- Dein Notification System aufrufen
-        Library.Notify(
-            "PERFORMANCE WARNING", 
-            "Heal All Players is active. This triggers frequency effects and may cause significant lag over time.", 
-            "Warning", 
-            7
-        )
-
         task.spawn(function()
             while HealAllEnabled do
                 for _, player in ipairs(Players:GetPlayers()) do
                     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                        -- Remote-Aufruf für den Heal-Effekt
                         local args = {
                             {
                                 "Heal",
@@ -630,11 +690,11 @@ MiscTab:Toggle("Heal All Players", false, function(state)
                         RemotesFolder.upgradefxserver:FireServer(unpack(args))
                     end
                 end
-                task.wait(0.1)
+                task.wait(1)
             end
         end)
     end
-end, "Heals everyone on the server.")
+end)
 
 -- Collect All Drops Button
 MiscTab:Button("Collect All Drops", function()
@@ -645,4 +705,4 @@ MiscTab:Button("Collect All Drops", function()
             Remote:FireServer({{drop.UID.Value}})
         end
     end
-end, "Instantly picks up all loot drops from the ground.")
+end)
