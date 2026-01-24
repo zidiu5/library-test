@@ -5,6 +5,7 @@ return {
     {name="Test Pls Work", url="https://raw.githubusercontent.com/zidiu5/Pls-work/refs/heads/main/test-pls-work.lua", gameId={108900455260873}, desc="Test Script + Index Farm"},
     {name="WhiteGUI", url="https://raw.githubusercontent.com/zidiu5/TheStupidPSXCopy/refs/heads/main/IDK", gameId={108900455260873}, desc="Not optimized"},
     {name="LoS", url="https://pastebin.com/raw/bs8aRU3Y", gameId={3101667897}, desc="Legends of Speed, prob on german"},
+    {name="LoS Neon UI", url="https://raw.githubusercontent.com/zidiu5/Pls-work/refs/heads/main/LoS.lua", gameId={3101667897}, desc="Legends of Speed. nothing more to say"},
     {name="BaS", url="https://raw.githubusercontent.com/zidiu5/Pls-work/refs/heads/main/build%20and%20survive.lua", gameId={3056526277}, desc="Build and Survive (Fluent GUI)"},
     {name="BABFT", url="https://raw.githubusercontent.com/zidiu5/Pls-work/refs/heads/main/BaBfT.lua", gameId={537413528}, desc="Build a Bowt (Fluent GUI)"},
     {name="Repair a Car", url="https://raw.githubusercontent.com/zidiu5/Pls-work/refs/heads/main/Fix%20a%20Car.lua", gameId={109265479748625}, desc="Repair a Car (literally the whole game)"},
