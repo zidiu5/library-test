@@ -2507,7 +2507,7 @@ local function CreateOptionalSettingsTab()
 		OpenButton.Visible = state
 	end)
 
-	SettingsTab:Toggle("Drag Open Button", false, function(state)
+	SettingsTab:Toggle("Drag Open Button", true, function(state)
 		dragEnabled = state 
 	end)
 
