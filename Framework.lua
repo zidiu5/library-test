@@ -452,8 +452,8 @@ local resizing = false
 local startMouse
 local startSize
 
-local MIN_SIZE = Vector2.new(350,300)
-local MAX_SIZE = Vector2.new(900,700)
+local MIN_SIZE = Vector2.new(150,100)
+local MAX_SIZE = Vector2.new(1200,900)
 
 ResizeHandle.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1
